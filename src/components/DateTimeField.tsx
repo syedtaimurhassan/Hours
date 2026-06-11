@@ -1,0 +1,76 @@
+import {
+  formatDateTime,
+  parseDateInput,
+  parseTimeInput,
+  wallToEpoch,
+} from '../lib/time'
+
+export type DateTimeDraft = { date: string; time: string } // raw input values
+
+export function draftToMs(d: DateTimeDraft): number | null {
+  const date = parseDateInput(d.date)
+  const time = parseTimeInput(d.time)
+  if (!date || !time) return null
+  return wallToEpoch(date.y, date.m, date.d, time.hh, time.mm)
+}
+
+/**
+ * Paired native date + time inputs — on iOS/Android these invoke the native
+ * wheel pickers (the friendly entry the user asked for; split inputs beat
+ * datetime-local on both platforms). The confirmation readout always shows
+ * the app's own format, including the DST-resolved time for inputs that the
+ * platform normalized.
+ */
+export function DateTimeField({
+  label,
+  value,
+  onChange,
+  error,
+  dateMax,
+}: {
+  label: string
+  value: DateTimeDraft
+  onChange: (v: DateTimeDraft, field: 'date' | 'time') => void
+  error?: string | undefined
+  dateMax?: string | undefined
+}) {
+  const ms = draftToMs(value)
+  return (
+    <div>
+      <span className="mb-1 block text-sm font-medium text-slate-700">
+        {label}
+      </span>
+      <div className="flex gap-2">
+        <input
+          type="date"
+          aria-label={`${label} date`}
+          className={inputClass(Boolean(error))}
+          value={value.date}
+          max={dateMax}
+          onChange={(e) => onChange({ ...value, date: e.target.value }, 'date')}
+        />
+        <input
+          type="time"
+          step={60}
+          aria-label={`${label} time`}
+          className={inputClass(Boolean(error))}
+          value={value.time}
+          onChange={(e) => onChange({ ...value, time: e.target.value }, 'time')}
+        />
+      </div>
+      {error ? (
+        <p className="mt-1 text-sm text-red-600">{error}</p>
+      ) : (
+        ms !== null && (
+          <p className="mt-1 text-sm text-slate-500">{formatDateTime(ms)}</p>
+        )
+      )}
+    </div>
+  )
+}
+
+function inputClass(invalid: boolean): string {
+  return `min-h-11 flex-1 rounded-lg border bg-white px-3 py-2 text-base text-slate-900 ${
+    invalid ? 'border-red-400' : 'border-slate-300'
+  }`
+}
