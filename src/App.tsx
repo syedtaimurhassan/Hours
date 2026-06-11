@@ -8,7 +8,7 @@ import {
 import { InstallCard } from './components/InstallCard'
 import { RepairDialog } from './components/RepairDialog'
 import { SnackbarHost, type Snack } from './components/Snackbar'
-import { SyncBadge } from './components/SyncBadge'
+import { SyncStrip } from './components/SyncBadge'
 import { isConfigured } from './firebase'
 import { getClockOffsetMs, subscribeClockOffset } from './lib/clock'
 import { effectiveEndMs } from './lib/durations'
@@ -252,14 +252,17 @@ function Shell({
 
   return (
     <div className="min-h-dvh bg-grouped">
-      {/* Minimal toolbar — large titles live in the screens (Apple style). */}
+      {/* Sticky header: connection strip + the large title aligned with the gear. */}
       <header className="safe-top sticky top-0 z-20 bg-grouped/80 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-12 max-w-md items-center gap-2 px-4">
-          <SyncBadge meta={openMeta} />
+        <SyncStrip meta={openMeta} />
+        <div className="mx-auto flex max-w-md items-center justify-between px-4 pt-2 pb-1">
+          <h1 className="text-[34px] leading-tight font-bold tracking-tight text-label">
+            {tab === 'track' ? 'Timer' : 'Timesheet'}
+          </h1>
           <button
             type="button"
             aria-label="Settings"
-            className="ml-auto flex min-h-10 min-w-10 items-center justify-center rounded-full text-secondary active:bg-fill"
+            className="-mr-1 flex min-h-10 min-w-10 items-center justify-center rounded-full text-secondary active:bg-fill"
             onClick={() => setSettingsOpen(true)}
           >
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -273,9 +276,6 @@ function Shell({
       <Banner banner={banner} />
 
       <main>
-        <h1 className="mx-auto max-w-md px-4 text-[34px] leading-tight font-bold tracking-tight text-label">
-          {tab === 'track' ? 'Timer' : 'Timesheet'}
-        </h1>
         <Suspense fallback={<ScreenFallback />}>
           {tab === 'track' ? (
             <Main

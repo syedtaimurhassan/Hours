@@ -1,24 +1,26 @@
 import type { SnapMeta } from '../lib/useShifts'
 
 /**
- * Subtle sync indicator for the toolbar. Driven solely by snapshot metadata
- * (never navigator.onLine). Nothing renders when everything is synced.
+ * Connectivity/sync status as a thin full-width strip (the industry-standard
+ * place for an offline indicator — e.g. a "No Internet" bar), shown only when
+ * there's something to report. Driven solely by snapshot metadata, never
+ * navigator.onLine.
  */
-export function SyncBadge({ meta }: { meta: SnapMeta }) {
+export function SyncStrip({ meta }: { meta: SnapMeta }) {
   if (meta.pendingCount > 0) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-[13px] font-medium text-amber-700">
+      <div className="flex items-center justify-center gap-1.5 bg-amber-100 py-1 text-[12px] font-medium text-amber-800">
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
-        Syncing
-      </span>
+        Syncing {meta.pendingCount} {meta.pendingCount === 1 ? 'change' : 'changes'}…
+      </div>
     )
   }
   if (meta.fromCache) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-fill px-3 py-1 text-[13px] font-medium text-secondary">
+      <div className="flex items-center justify-center gap-1.5 bg-[#e5e5ea] py-1 text-[12px] font-medium text-secondary">
         <CloudOffIcon />
-        Offline
-      </span>
+        Offline · changes saved on this device
+      </div>
     )
   }
   return null
