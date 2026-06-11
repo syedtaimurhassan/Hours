@@ -24,7 +24,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['fav.png', 'favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['fav.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Hours',
         short_name: 'Hours',

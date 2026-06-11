@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest",
-    "icons": "node scripts/make-icons.mjs"
+    "test": "vitest"
   },
   "dependencies": {
     "@date-fns/tz": "^1.2.0",
