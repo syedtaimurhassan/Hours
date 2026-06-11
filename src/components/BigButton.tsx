@@ -76,7 +76,7 @@ export function BigButton({
           state.kind === 'idle'
             ? 'bg-emerald-600 active:bg-emerald-700'
             : state.kind === 'pending'
-              ? 'bg-slate-400'
+              ? 'bg-slate-500'
               : state.onBreak
                 ? 'bg-amber-500 active:bg-amber-600'
                 : 'pulse-running bg-red-600 active:bg-red-700'

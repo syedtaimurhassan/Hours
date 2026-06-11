@@ -98,7 +98,7 @@ export function Settings({
           )}
 
           <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-            <p className="font-medium text-slate-700">Hours</p>
+            <p className="font-medium text-slate-700">Hours v{__APP_VERSION__}</p>
             <p className="mt-1">
               Shifts are shown on the day they started. Times are Danish time
               (Europe/Copenhagen). Your data is stored in the cloud once the

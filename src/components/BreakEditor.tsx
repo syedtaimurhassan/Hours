@@ -78,7 +78,7 @@ export function BreakEditor({
               <button
                 type="button"
                 aria-label="Remove break"
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 active:bg-slate-100"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 active:bg-slate-100"
                 onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
               >
                 ✕
@@ -96,7 +96,7 @@ export function BreakEditor({
           <button
             key={min}
             type="button"
-            className="min-h-9 rounded-full border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 active:bg-slate-100"
+            className="min-h-11 rounded-full border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 active:bg-slate-100"
             onClick={() => addPreset(min)}
           >
             {formatDuration(min * 60_000)}

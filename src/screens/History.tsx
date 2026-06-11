@@ -176,11 +176,14 @@ export function History({
   }, [shifts])
 
   let shown = 0
-  const visibleGroups: [string, Shift[]][] = []
+  // Each visible group carries BOTH the page slice (to render) and its full
+  // day list (for the day-header total) — so a day split across the 50-item
+  // page boundary still shows the correct "Worked" total.
+  const visibleGroups: { key: string; take: Shift[]; full: Shift[] }[] = []
   for (const [k, list] of groups) {
     if (shown >= limit) break
     const take = list.slice(0, Math.max(0, limit - shown))
-    visibleGroups.push([k, take])
+    visibleGroups.push({ key: k, take, full: list })
     shown += take.length
   }
   const hasMore = shifts.length > shown
@@ -201,7 +204,7 @@ export function History({
           <button
             key={f}
             type="button"
-            className={`min-h-9 shrink-0 rounded-full px-3.5 text-sm font-medium capitalize ${
+            className={`min-h-11 shrink-0 rounded-full px-3.5 text-sm font-medium capitalize ${
               filter === f
                 ? 'bg-emerald-600 text-white'
                 : 'border border-slate-300 bg-white text-slate-600'
@@ -214,7 +217,7 @@ export function History({
         <button
           type="button"
           aria-label="Add shift"
-          className="ml-auto flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-medium text-emerald-700"
+          className="ml-auto flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-medium text-emerald-700"
           onClick={() => onEdit({ kind: 'add' })}
         >
           ＋
@@ -277,7 +280,7 @@ export function History({
             {!isCurrent && (
               <button
                 type="button"
-                className="min-h-9 rounded-full border border-slate-300 bg-white px-3 text-xs font-medium text-slate-600"
+                className="min-h-11 rounded-full border border-slate-300 bg-white px-3 text-xs font-medium text-slate-600"
                 onClick={() => {
                   setAnchorMs(Date.now())
                   setLimit(PAGE_SIZE)
@@ -309,7 +312,7 @@ export function History({
             Worked {formatDuration(totals.workedMs)}
           </span>
           {meta.fromCache && (
-            <span className="flex items-center gap-1 text-xs text-slate-400">
+            <span className="flex items-center gap-1 text-xs text-slate-500">
               <span className="inline-block h-3 w-10 animate-pulse rounded bg-slate-200" />
               updating…
             </span>
@@ -326,26 +329,26 @@ export function History({
         <div className="mt-4 space-y-2">
           <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
           <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
-          <p className="text-center text-sm text-slate-400">
+          <p className="text-center text-sm text-slate-500">
             Loading your shifts…
           </p>
         </div>
       ) : shifts.length === 0 ? (
-        <p className="mt-4 rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-400">
+        <p className="mt-4 rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
           No shifts in this period · 0 m
         </p>
       ) : (
         <div className="mt-4 flex flex-col gap-4">
-          {visibleGroups.map(([k, list]) => {
-            const dayTotals = periodTotals(list, now)
+          {visibleGroups.map(({ key: k, take, full }) => {
+            const dayTotals = periodTotals(full, now)
             return (
               <section key={k}>
                 <h3 className="mb-1.5 flex items-baseline justify-between text-sm font-medium text-slate-500">
-                  <span>{formatDayHeader(resolveMs(list[0].start))}</span>
+                  <span>{formatDayHeader(resolveMs(full[0].start))}</span>
                   <span>Worked {formatDuration(dayTotals.workedMs)}</span>
                 </h3>
                 <div className="flex flex-col gap-2">
-                  {list.map((s) => (
+                  {take.map((s) => (
                     <ShiftCard
                       key={s.id}
                       shift={s}
@@ -371,7 +374,7 @@ export function History({
         </div>
       )}
 
-      <p className="mt-6 text-center text-xs text-slate-400">
+      <p className="mt-6 text-center text-xs text-slate-500">
         Shifts are shown on the day they started.
       </p>
     </div>

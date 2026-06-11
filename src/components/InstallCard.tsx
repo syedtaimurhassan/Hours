@@ -34,7 +34,7 @@ export function InstallCard({
       <button
         type="button"
         aria-label="Dismiss"
-        className="ml-auto flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded text-slate-400 active:bg-slate-100"
+        className="ml-auto flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-slate-500 active:bg-slate-100"
         onClick={onDismiss}
       >
         ✕

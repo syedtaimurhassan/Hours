@@ -171,8 +171,24 @@ export async function startShift({
 
   if (!knownOffline) {
     const result = await raceTx(async (tx, checkAbandoned) => {
+      // Read `ref` into the transaction's read-set FIRST, so the commit
+      // carries an existence precondition on it. Without this, a commit RPC
+      // still in flight when the 3 s deadline fires would land as an
+      // unconditional whole-document set() — blindly overwriting a break or
+      // stop-claim that the fallback batch (or a later edit) recorded in the
+      // meantime. With the read, an intervening write makes the late commit
+      // conflict and the SDK re-runs the closure into checkAbandoned().
+      const existing = await tx.get(ref)
+      checkAbandoned()
       const stateSnap = await tx.get(sRef)
       checkAbandoned()
+      // The fallback batch already created this doc → converge, don't clobber.
+      if (existing.exists()) {
+        if (stateSnap.data()?.activeShiftId !== shiftId) {
+          tx.set(sRef, { activeShiftId: shiftId, updatedAt: serverTimestamp() })
+        }
+        return
+      }
       const activeId = (stateSnap.data()?.activeShiftId ?? null) as
         | string
         | null
@@ -312,6 +328,11 @@ export async function resumeShift({
     })
     if (result.outcome === 'committed') return
   }
+  // Offline fallback is last-write-wins on this break's end. Narrow window:
+  // it only diverges if another device resumed the SAME break and that write
+  // hasn't reached this device yet. Pausing for lunch on two phones at once is
+  // not a real scenario for a single-user tracker, so a per-device claims
+  // ledger (as stop-claims use) isn't worth the schema cost here.
   fireBatch((b) =>
     b.update(ref, { [`breaks.${targetId}.end`]: offlineStamp(tapMs), ...meta() }),
   )
@@ -375,16 +396,31 @@ export async function discardActiveShift(
 ): Promise<void> {
   const ref = shiftRef(uid, shiftId)
   const sRef = stateRef(uid)
+  // Capture once — never re-stamp on transaction retry (deletedAtMs is
+  // informational today, but the invariant is cheap to keep true).
+  const deletedAtMs = Date.now()
   const tombstone = () => ({
     deleted: true,
-    deletedAtMs: Date.now(),
+    deletedAtMs,
     ...meta(),
   })
 
   if (!knownOffline) {
     const result = await raceTx(async (tx, checkAbandoned) => {
+      // Read `ref` into the read-set so a late-landing commit conflicts with
+      // any intervening write (e.g. the UNDO that restores the shift) instead
+      // of blindly re-applying deleted:true and silently re-deleting it.
+      const fresh = await getShiftInTx(tx, ref)
+      checkAbandoned()
       const stateSnap = await tx.get(sRef)
       checkAbandoned()
+      if (!fresh || fresh.deleted) {
+        // Already gone / undone elsewhere — only keep the flag honest.
+        if (stateSnap.data()?.activeShiftId === shiftId) {
+          tx.update(sRef, { activeShiftId: null, updatedAt: serverTimestamp() })
+        }
+        return
+      }
       tx.update(ref, tombstone())
       if (stateSnap.data()?.activeShiftId === shiftId) {
         tx.update(sRef, { activeShiftId: null, updatedAt: serverTimestamp() })

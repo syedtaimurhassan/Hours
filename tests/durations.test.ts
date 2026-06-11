@@ -11,6 +11,7 @@ import {
   unionedBreakIntervals,
   workedMs,
 } from '../src/lib/durations'
+import { wallToEpoch } from '../src/lib/time'
 import type { Shift, Stamp } from '../src/types'
 
 const H = 3_600_000
@@ -172,6 +173,44 @@ describe('bad-data guards', () => {
       stopClaims: { phone: live(T0 + 6 * H) },
     })
     expect(workedMs(s, T0 + 9 * H)).toBe(8 * H)
+  })
+})
+
+describe('DST: durations are epoch subtraction, breaks included', () => {
+  // Copenhagen spring-forward 2026-03-29 (01:00 CET → 03:00 CEST) and
+  // fall-back 2026-10-25 (03:00 CEST → 02:00 CET). Wall-clock math would be
+  // wrong by an hour; epoch math is exact.
+  const sf = (hh: number, mm = 0) => wallToEpoch(2026, 3, 29, hh, mm)
+  const fb = (hh: number, mm = 0) => wallToEpoch(2026, 10, 25, hh, mm)
+
+  it('shift spanning spring-forward with a break across the jump', () => {
+    // 23:00 prev-day → 04:00; the 00:00–04:00 wall window is only 3 real hours.
+    const start = wallToEpoch(2026, 3, 28, 23, 0)
+    const end = sf(4, 0)
+    const s = shift({
+      start: live(start),
+      end: live(end),
+      breaks: { b1: { start: live(sf(0, 30)), end: live(sf(3, 30)) } },
+    })
+    // 01:00→03:00 doesn't exist, so 00:30→03:30 wall is 2 real hours of break.
+    expect(shiftMs(s, end + H)).toBe(4 * H) // 23:00→04:00 = 4 real hours
+    expect(breakMs(s, end + H)).toBe(2 * H)
+    expect(workedMs(s, end + H)).toBe(2 * H)
+  })
+
+  it('shift spanning fall-back with a break across the repeated hour', () => {
+    // 01:30 CEST → 03:30 CET is 3 real hours (02:00–03:00 happens twice).
+    const start = fb(1, 30)
+    const end = fb(3, 30)
+    const s = shift({
+      start: live(start),
+      end: live(end),
+      breaks: { b1: { start: live(fb(1, 45)), end: live(fb(3, 15)) } },
+    })
+    expect(shiftMs(s, end + H)).toBe(3 * H)
+    // 01:45→03:15 across the fall-back is 2.5 real hours.
+    expect(breakMs(s, end + H)).toBe(2 * H + 30 * MIN)
+    expect(workedMs(s, end + H)).toBe(30 * MIN)
   })
 })
 

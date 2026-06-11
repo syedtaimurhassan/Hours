@@ -7,7 +7,7 @@ import {
   type User,
 } from 'firebase/auth'
 import { useEffect, useRef, useState } from 'react'
-import { auth } from '../firebase'
+import { auth, isConfigured } from '../firebase'
 
 export type AuthState =
   | { status: 'loading' }
@@ -72,9 +72,11 @@ export function useAuth(): AuthState {
   const [state, setState] = useState<AuthState>({ status: 'loading' })
   const wasSignedIn = useRef(false)
 
-  useEffect(
-    () =>
-      onAuthStateChanged(auth, (user) => {
+  useEffect(() => {
+    // No real Firebase project configured — App renders <ConfigError/>; don't
+    // attach a listener to the dummy app.
+    if (!isConfigured) return
+    return onAuthStateChanged(auth, (user) => {
         if (user) {
           wasSignedIn.current = true
           explicitSignOut = false
@@ -90,9 +92,8 @@ export function useAuth(): AuthState {
             sessionExpired: wasSignedIn.current && !explicitSignOut,
           })
         }
-      }),
-    [],
-  )
+    })
+  }, [])
   return state
 }
 

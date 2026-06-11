@@ -56,10 +56,18 @@ function TabButton({
       type="button"
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
-      className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium ${
-        active ? 'text-emerald-700' : 'text-slate-500'
+      className={`relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs ${
+        active ? 'font-semibold text-emerald-700' : 'font-medium text-slate-500'
       }`}
     >
+      {/* Non-color cue (top indicator bar + bolder weight) so the active tab
+          survives color-blindness, not green-vs-gray alone. */}
+      {active && (
+        <span
+          aria-hidden
+          className="absolute inset-x-6 top-0 h-0.5 rounded-full bg-emerald-600"
+        />
+      )}
       {icon}
       {label}
     </button>

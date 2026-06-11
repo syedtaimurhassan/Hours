@@ -10,7 +10,7 @@ import { RepairDialog } from './components/RepairDialog'
 import { SnackbarHost, type Snack } from './components/Snackbar'
 import { SyncBadge } from './components/SyncBadge'
 import { isConfigured } from './firebase'
-import { getClockOffsetMs } from './lib/clock'
+import { getClockOffsetMs, subscribeClockOffset } from './lib/clock'
 import { effectiveEndMs } from './lib/durations'
 import { saveShiftEdit, undoDelete } from './lib/shifts'
 import {
@@ -35,6 +35,20 @@ import type { EditRequest, Shift } from './types'
 
 export default function App() {
   const auth = useAuth()
+  // Register the service worker ONCE here — App mounts exactly once regardless
+  // of auth state, so SW listeners never stack on sign-in/out and precaching
+  // starts on first visit (before login).
+  const pwa = usePWAUpdate()
+
+  useEffect(() => {
+    // Reaching render means the entry chunk loaded — clear the reload-loop
+    // guard so a future genuine update can still recover once.
+    try {
+      sessionStorage.removeItem('hours.preloadReloaded')
+    } catch {
+      /* private browsing */
+    }
+  }, [])
 
   if (!isConfigured) return <ConfigError />
   if (auth.status === 'loading') return <Splash />
@@ -45,11 +59,20 @@ export default function App() {
     <Shell
       uid={auth.user.uid}
       email={auth.user.email ?? 'unknown account'}
+      pwa={pwa}
     />
   )
 }
 
-function Shell({ uid, email }: { uid: string; email: string }) {
+function Shell({
+  uid,
+  email,
+  pwa,
+}: {
+  uid: string
+  email: string
+  pwa: { updateReady: boolean; applyUpdate: () => void }
+}) {
   const [tab, setTab] = useState<Tab>('track')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [editRequest, setEditRequest] = useState<EditRequest | null>(null)
@@ -64,10 +87,13 @@ function Shell({ uid, email }: { uid: string; email: string }) {
   const observedActiveId = useActiveFlag(uid)
   const flags = useReconcile(uid, candidates, observedActiveId)
   const syncError = useSyncError(uid)
-  const { updateReady, applyUpdate } = usePWAUpdate()
+  const { updateReady, applyUpdate } = pwa
   const install = useInstallPrompt()
+  const clockOffset = useClockOffset()
   const active = openShifts[0] ?? null
-  const now = useNow(active !== null)
+  // Tick whenever a shift is running OR a sheet that validates against "now"
+  // is open — otherwise an idle editor would block "ends now" as future.
+  const now = useNow(active !== null || editRequest !== null || settingsOpen)
 
   const showSnack = useCallback((s: Omit<Snack, 'key'>) => {
     setSnack({ ...s, key: Date.now() })
@@ -127,7 +153,7 @@ function Shell({ uid, email }: { uid: string; email: string }) {
         actions: [{ label: 'Reload', run: applyUpdate }],
       }
     }
-    if (!clockNoteDismissed && Math.abs(getClockOffsetMs()) > 2 * 60_000) {
+    if (!clockNoteDismissed && Math.abs(clockOffset) > 2 * 60_000) {
       return {
         id: 'clock',
         tone: 'info',
@@ -166,6 +192,7 @@ function Shell({ uid, email }: { uid: string; email: string }) {
     updateReady,
     applyUpdate,
     clockNoteDismissed,
+    clockOffset,
     privateMode,
     install.showIOSInstallCard,
     install.iosNeedsSafari,
@@ -308,6 +335,13 @@ function ConfigError() {
       </div>
     </div>
   )
+}
+
+/** Reactive clock offset — the banner appears as soon as it's measured. */
+function useClockOffset(): number {
+  const [offset, setOffset] = useState(() => getClockOffsetMs())
+  useEffect(() => subscribeClockOffset(() => setOffset(getClockOffsetMs())), [])
+  return offset
 }
 
 /** IndexedDB probe — Firestore falls back to memory cache in private mode. */

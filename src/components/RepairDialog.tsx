@@ -29,6 +29,7 @@ export function RepairDialog({
     date: toDateInputValue(prefill),
     time: toTimeInputValue(prefill),
   })
+  const [resolving, setResolving] = useState(false)
 
   const pickedMs = draftToMs(draft)
   const error =
@@ -65,11 +66,15 @@ export function RepairDialog({
         </div>
         <button
           type="button"
-          disabled={error !== null}
+          disabled={error !== null || resolving}
           className="mt-4 min-h-12 w-full rounded-xl bg-emerald-600 text-base font-semibold text-white disabled:opacity-40"
-          onClick={() => pickedMs !== null && onResolve(earliest, pickedMs)}
+          onClick={() => {
+            if (pickedMs === null || resolving) return
+            setResolving(true)
+            onResolve(earliest, pickedMs)
+          }}
         >
-          Fix overlap
+          {resolving ? 'Fixing…' : 'Fix overlap'}
         </button>
       </div>
     </div>

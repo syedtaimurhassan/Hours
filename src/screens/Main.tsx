@@ -122,6 +122,7 @@ export function Main({
   const doStart = () => {
     const tapMs = Date.now()
     const shiftId = crypto.randomUUID()
+    markHasStarted()
     setPending('starting')
     startShift({ uid, tapMs, shiftId, knownOffline })
       .then(() =>
@@ -179,6 +180,11 @@ export function Main({
 
   const onPauseResume = () => {
     if (!active || pending) return
+    if (settling) {
+      // Same debounce treatment as the big button — swallow with a nod.
+      showSnack({ message: 'One moment…', ttl: 2000 })
+      return
+    }
     const tapMs = Date.now()
     if (activeBreakId) {
       setPending('resuming')
@@ -191,18 +197,22 @@ export function Main({
 
   const quickAdjust = (minutes: number) => {
     if (!active) return
-    void adjustStart(uid, active, -minutes * 60_000).then(
-      ({ previousStartMs }) =>
+    adjustStart(uid, active, -minutes * 60_000)
+      .then(({ previousStartMs }) =>
         showSnack({
           message: `Start moved to ${formatTime(previousStartMs - minutes * 60_000)}`,
           actions: [
             {
               label: 'UNDO',
-              run: () => void restoreStart(uid, active.id, previousStartMs),
+              run: () =>
+                void restoreStart(uid, active.id, previousStartMs).catch(
+                  opFailed,
+                ),
             },
           ],
         }),
-    )
+      )
+      .catch(opFailed)
   }
 
   const pendingLabels = {
@@ -227,7 +237,9 @@ export function Main({
         }
       : {
           kind: 'idle',
-          firstRun: todayMeta.serverSeen && todayShifts.length === 0,
+          // Only the genuine first run, not every empty morning.
+          firstRun:
+            todayMeta.serverSeen && todayShifts.length === 0 && !hasEverStarted(),
         }
 
   // The active shift is ALWAYS shown in Today regardless of start day — a
@@ -239,6 +251,11 @@ export function Main({
     return list.sort((a, b) => resolveMs(b.start) - resolveMs(a.start))
   }, [todayShifts, active])
   const todayTotals = periodTotals(todayShifts, now)
+  // The header total counts shifts attributed to today (by start day). When an
+  // overnight shift started yesterday is shown here too, note the exclusion so
+  // the header can't appear to contradict the cards below it.
+  const overnightShown =
+    active !== null && dayKey(resolveMs(active.start)) !== todayKey
 
   const badgesFor = (s: Shift): ShiftBadge[] => {
     const badges: ShiftBadge[] = []
@@ -286,7 +303,7 @@ export function Main({
               <button
                 key={m}
                 type="button"
-                className="min-h-9 rounded-full border border-slate-300 bg-white px-3 font-medium text-slate-700 active:bg-slate-100"
+                className="min-h-11 rounded-full border border-slate-300 bg-white px-3 font-medium text-slate-700 active:bg-slate-100"
                 onClick={() => quickAdjust(m)}
               >
                 −{m} min
@@ -304,18 +321,23 @@ export function Main({
           {todayShifts.length > 0 && (
             <span className="text-sm font-medium text-slate-700">
               Worked {formatDuration(todayTotals.workedMs)}
+              {overnightShown && (
+                <span className="ml-1 font-normal text-slate-500">
+                  · excl. overnight
+                </span>
+              )}
             </span>
           )}
         </div>
         {!todayMeta.serverSeen && todayList.length === 0 ? (
           <div className="space-y-2">
             <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
-            <p className="text-center text-sm text-slate-400">
+            <p className="text-center text-sm text-slate-500">
               Loading your shifts…
             </p>
           </div>
         ) : todayList.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-400">
+          <p className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">
             No shifts today.
           </p>
         ) : (
@@ -401,4 +423,22 @@ function closedBreaksUpTo(shift: Shift, endMs: number) {
       endMs: b.end ? Math.min(resolveMs(b.end), endMs) : endMs,
     }))
     .filter((b) => b.startMs < endMs && b.endMs > b.startMs)
+}
+
+// Per-device "has the user ever started a shift" flag — gates the first-run
+// hint so it shows once, not on every empty day.
+const STARTED_KEY = 'hours.hasStarted'
+function hasEverStarted(): boolean {
+  try {
+    return localStorage.getItem(STARTED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+function markHasStarted(): void {
+  try {
+    localStorage.setItem(STARTED_KEY, '1')
+  } catch {
+    /* private browsing */
+  }
 }

@@ -93,11 +93,17 @@ export function EditShiftSheet({
   const [end, setEnd] = useState<DateTimeDraft>(initial.end)
   const [rows, setRows] = useState<BreakRow[]>(initial.rows)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [overlapError, setOverlapError] = useState<{
     message: string
     shiftId: string
   } | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  // Don't show "Enter a date and time" on a pristine Add form — only after the
+  // user has touched the field or pressed Save.
+  const [touched, setTouched] = useState({ start: false, end: false })
+  const [submitted, setSubmitted] = useState(false)
   const endDateTouched = useRef(false)
 
   useEffect(() => {
@@ -107,6 +113,9 @@ export function EditShiftSheet({
     setRows(initial.rows)
     setOverlapError(null)
     setNotice(null)
+    setSaveError(null)
+    setTouched({ start: false, end: false })
+    setSubmitted(false)
     endDateTouched.current = false
   }, [initial])
 
@@ -176,12 +185,26 @@ export function EditShiftSheet({
 
   const onStartChange = (v: DateTimeDraft, field: 'date' | 'time') => {
     setStart(v)
+    setTouched((t) => ({ ...t, start: true }))
     // The end date auto-follows the start date until the user explicitly
     // touches the end-date field — adding yesterday's shift must not flash a
     // 30 h preview.
     if (field === 'date' && !endDateTouched.current && !ongoing) {
       setEnd((e) => ({ ...e, date: v.date }))
     }
+  }
+
+  // "Enter a date and time" shows only after touch/submit; real errors (future,
+  // end-before-start) always show because they require a value to exist.
+  const showFieldError = (
+    field: 'start' | 'end',
+    error: string | undefined,
+  ): string | undefined => {
+    if (!error) return undefined
+    if (error === 'Enter a date and time.' && !touched[field] && !submitted) {
+      return undefined
+    }
+    return error
   }
 
   const applyOvernightFix = () => {
@@ -192,9 +215,11 @@ export function EditShiftSheet({
   }
 
   const save = async () => {
+    setSubmitted(true)
     if (!validation.valid || startMs === null || saving) return
     setSaving(true)
     setOverlapError(null)
+    setSaveError(null)
     try {
       const draftInterval = {
         startMs,
@@ -240,16 +265,33 @@ export function EditShiftSheet({
       }
       onSaved(dstNotice)
       onClose()
+    } catch (err) {
+      // OpError('shift-deleted') if the doc vanished mid-save, or a failed
+      // overlap query — surface it instead of silently re-enabling Save.
+      const code = (err as { code?: string })?.code
+      setSaveError(
+        code === 'shift-deleted'
+          ? 'This shift was deleted on another device.'
+          : "Couldn't save — please try again.",
+      )
     } finally {
       setSaving(false)
     }
   }
 
   const deleteShift = async () => {
-    if (!editing || isActive) return
-    await softDeleteShift(uid, editing.id)
-    onDeleted(editing)
-    onClose()
+    if (!editing || isActive || deleting) return
+    setDeleting(true)
+    setSaveError(null)
+    try {
+      await softDeleteShift(uid, editing.id)
+      onDeleted(editing)
+      onClose()
+    } catch {
+      setSaveError("Couldn't delete — please try again.")
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (
@@ -268,12 +310,18 @@ export function EditShiftSheet({
         </button>
       </div>
 
-      <div className="flex flex-col gap-4">
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void save()
+        }}
+      >
         <DateTimeField
           label="Start"
           value={start}
           onChange={onStartChange}
-          error={validation.errors.start}
+          error={showFieldError('start', validation.errors.start)}
         />
 
         {isActive && ongoing ? (
@@ -308,14 +356,15 @@ export function EditShiftSheet({
               value={end}
               onChange={(v, field) => {
                 if (field === 'date') endDateTouched.current = true
+                setTouched((t) => ({ ...t, end: true }))
                 setEnd(v)
               }}
-              error={validation.errors.end}
+              error={showFieldError('end', validation.errors.end)}
             />
             {validation.suggestOvernight && startMs !== null && (
               <button
                 type="button"
-                className="mt-1 text-sm font-medium text-emerald-700 underline"
+                className="mt-1 flex min-h-11 items-center text-sm font-medium text-emerald-700 underline"
                 onClick={applyOvernightFix}
               >
                 Ended the next day? → use{' '}
@@ -325,7 +374,7 @@ export function EditShiftSheet({
             {isActive && !ongoing && (
               <button
                 type="button"
-                className="mt-1 text-sm font-medium text-slate-500 underline"
+                className="mt-1 flex min-h-11 items-center text-sm font-medium text-slate-500 underline"
                 onClick={() => setOngoing(true)}
               >
                 Keep ongoing instead
@@ -363,6 +412,11 @@ export function EditShiftSheet({
           </p>
         )}
         {notice && <p className="text-sm text-slate-500">{notice}</p>}
+        {saveError && (
+          <p role="alert" className="text-sm font-medium text-red-600">
+            {saveError}
+          </p>
+        )}
         {preview && (
           <p className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700">
             {preview}
@@ -370,10 +424,9 @@ export function EditShiftSheet({
         )}
 
         <button
-          type="button"
+          type="submit"
           disabled={!validation.valid || saving || (!dirty && !!editing)}
           className="min-h-12 rounded-xl bg-emerald-600 text-base font-semibold text-white disabled:opacity-40"
-          onClick={() => void save()}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
@@ -381,21 +434,22 @@ export function EditShiftSheet({
         {editing && (
           <div className="mt-2 border-t border-slate-200 pt-3 text-center">
             {isActive ? (
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-slate-500">
                 To delete this shift, end it first.
               </p>
             ) : (
               <button
                 type="button"
-                className="min-h-11 text-sm font-medium text-red-600"
+                disabled={deleting}
+                className="min-h-11 text-sm font-medium text-red-600 disabled:opacity-50"
                 onClick={() => void deleteShift()}
               >
-                Delete shift
+                {deleting ? 'Deleting…' : 'Delete shift'}
               </button>
             )}
           </div>
         )}
-      </div>
+      </form>
     </Sheet>
   )
 }

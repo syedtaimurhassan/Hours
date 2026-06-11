@@ -1,15 +1,24 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Must match the GitHub repository name — the app is served from
-// https://<user>.github.io/<REPO>/
-const REPO = 'hours'
+// Must match the GitHub repository name EXACTLY (case-sensitive) — the app is
+// served from https://<user>.github.io/<REPO>/. Current remote: syedtaimurhassan/Hours
+const REPO = 'Hours'
+
+const pkg = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8'),
+) as { version: string }
 
 export default defineConfig({
   base: `/${REPO}/`,
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     tailwindcss(),
