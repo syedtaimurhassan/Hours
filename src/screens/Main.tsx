@@ -23,17 +23,18 @@ import {
   OpError,
 } from '../lib/shifts'
 import {
-  FORGOT_THRESHOLD_MS,
   dayKey,
   dayRange,
   formatDuration,
   formatTime,
   resolveMs,
 } from '../lib/time'
+import { getLastJobId, setLastJobId } from '../lib/jobs'
+import { JobSelector } from '../components/JobBits'
 import { useNow } from '../lib/useNow'
 import { usePeriodShifts, type SnapMeta } from '../lib/useShifts'
 import type { ReconcileResult } from '../lib/reconcile'
-import type { EditRequest, Shift } from '../types'
+import type { EditRequest, Job, Shift } from '../types'
 
 type Pending = 'starting' | 'ending' | 'pausing' | 'resuming' | null
 
@@ -43,20 +44,49 @@ export function Main({
   openShifts,
   openMeta,
   flags,
+  jobs,
+  jobsById,
+  forgotThresholdMs,
   onEdit,
+  onManageJobs,
   showSnack,
 }: {
   uid: string
   openShifts: Shift[]
   openMeta: SnapMeta
   flags: ReconcileResult
+  jobs: Job[]
+  jobsById: Map<string, Job>
+  /** Forgot-to-end intercept threshold (ms); 0 = disabled in settings. */
+  forgotThresholdMs: number
   onEdit: (target: EditRequest) => void
+  onManageJobs: () => void
   showSnack: (snack: Omit<Snack, 'key'>) => void
 }) {
   const now = useNow(true)
   const active = openShifts[0] ?? null
   const activeBreakId = active ? openBreakId(active) : null
   const knownOffline = openMeta.fromCache
+
+  // Job selected for the NEXT shift — defaults to last-used active job.
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(() => {
+    const last = getLastJobId()
+    return last && jobs.some((j) => j.id === last && !j.archived) ? last : null
+  })
+  // Keep selection valid as jobs load/change; default to the first job.
+  useEffect(() => {
+    if (selectedJobId && !jobs.some((j) => j.id === selectedJobId && !j.archived)) {
+      setSelectedJobId(null)
+    } else if (selectedJobId === null && getLastJobId() === null) {
+      const first = jobs.find((j) => !j.archived)
+      if (first) setSelectedJobId(first.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs])
+  const activeJobsList = jobs.filter((j) => !j.archived)
+  const trackedJob = active
+    ? (active.jobId ? jobsById.get(active.jobId) : undefined)
+    : (selectedJobId ? jobsById.get(selectedJobId) : undefined)
 
   const todayKey = dayKey(now)
   const range = useMemo(
@@ -123,8 +153,9 @@ export function Main({
     const tapMs = Date.now()
     const shiftId = crypto.randomUUID()
     markHasStarted()
+    setLastJobId(selectedJobId)
     setPending('starting')
-    startShift({ uid, tapMs, shiftId, knownOffline })
+    startShift({ uid, tapMs, shiftId, jobId: selectedJobId, knownOffline })
       .then(() =>
         showSnack({
           message: `Shift started at ${formatTime(tapMs)}`,
@@ -170,8 +201,9 @@ export function Main({
       doStart()
       return
     }
-    // Forgot-to-end interception: one threshold — banner and behavior agree.
-    if (now - resolveMs(active.start) > FORGOT_THRESHOLD_MS) {
+    // Forgot-to-end interception: one threshold — banner and behavior agree
+    // (0 = disabled in settings).
+    if (forgotThresholdMs > 0 && now - resolveMs(active.start) > forgotThresholdMs) {
       setRecovery(true)
       return
     }
@@ -266,11 +298,24 @@ export function Main({
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 pt-6 pb-28">
+    <div className="mx-auto max-w-md px-4 pt-5 pb-28">
+      {/* Job selector for the next shift — only when idle and jobs exist. */}
+      {!active && !pending && activeJobsList.length > 0 && (
+        <div className="mb-6">
+          <JobSelector
+            jobs={activeJobsList}
+            selectedId={selectedJobId}
+            onSelect={setSelectedJobId}
+            onManage={onManageJobs}
+          />
+        </div>
+      )}
+
       <BigButton
         state={buttonState}
         settling={settling}
         nowMs={now}
+        job={trackedJob}
         onTap={onBigTap}
         onSwallowedTap={() =>
           showSnack({
@@ -313,6 +358,18 @@ export function Main({
         </>
       )}
 
+      {!active && !pending && activeJobsList.length === 0 && (
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={onManageJobs}
+            className="min-h-9 text-sm font-medium text-emerald-700 underline"
+          >
+            Set up jobs to track workplaces separately
+          </button>
+        </div>
+      )}
+
       <section className="mt-10">
         <div className="mb-2 flex items-baseline justify-between">
           <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
@@ -350,6 +407,7 @@ export function Main({
                 <ShiftCard
                   key={s.id}
                   shift={s}
+                  job={s.jobId ? jobsById.get(s.jobId) : undefined}
                   nowMs={now}
                   endMs={end}
                   badges={badgesFor(s)}

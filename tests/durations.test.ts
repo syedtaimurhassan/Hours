@@ -26,6 +26,7 @@ function shift(partial: Partial<Shift>): Shift {
     id: 's1',
     start: live(T0),
     end: null,
+    jobId: null,
     stopClaims: {},
     breaks: {},
     deleted: false,

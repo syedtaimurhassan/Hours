@@ -14,7 +14,6 @@ import { getClockOffsetMs, subscribeClockOffset } from './lib/clock'
 import { effectiveEndMs } from './lib/durations'
 import { saveShiftEdit, undoDelete } from './lib/shifts'
 import {
-  FORGOT_THRESHOLD_MS,
   dayKey,
   formatDate,
   formatDuration,
@@ -23,7 +22,9 @@ import {
 } from './lib/time'
 import { useAuth } from './lib/useAuth'
 import { useInstallPrompt } from './lib/useInstallPrompt'
+import { useJobs } from './lib/useJobs'
 import { useNow } from './lib/useNow'
+import { usePrefs } from './lib/usePrefs'
 import { usePWAUpdate } from './lib/usePWAUpdate'
 import { useActiveFlag, useReconcile } from './lib/useReconcile'
 import { useOpenShifts, useShiftDoc, useSyncError } from './lib/useShifts'
@@ -32,6 +33,8 @@ import { Login } from './screens/Login'
 import { Main } from './screens/Main'
 import { Settings } from './screens/Settings'
 import type { EditRequest, Shift } from './types'
+
+const FORGOT_HOURS_TO_MS = 3_600_000
 
 export default function App() {
   const auth = useAuth()
@@ -81,12 +84,17 @@ function Shell({
     () => readFlag('hours.installCardDismissed'),
   )
   const [clockNoteDismissed, setClockNoteDismissed] = useState(false)
+  const [privateDismissed, setPrivateDismissed] = useState(false)
+  // Per-shift session dismissal of the forgot-to-end banner.
+  const [forgotDismissedId, setForgotDismissedId] = useState<string | null>(null)
   const privateMode = usePrivateModeProbe()
 
   const { openShifts, candidates, meta: openMeta } = useOpenShifts(uid)
   const observedActiveId = useActiveFlag(uid)
   const flags = useReconcile(uid, candidates, observedActiveId)
   const syncError = useSyncError(uid)
+  const { jobs, byId: jobsById } = useJobs(uid)
+  const prefs = usePrefs()
   const { updateReady, applyUpdate } = pwa
   const install = useInstallPrompt()
   const clockOffset = useClockOffset()
@@ -121,11 +129,14 @@ function Shell({
     }
   }, [editRequest, editingShift])
 
+  // Effective forgot-to-end threshold from prefs (0 h = the reminder is off).
+  const forgotThresholdMs = prefs.forgotThresholdH * FORGOT_HOURS_TO_MS
+
   // ----- Single-banner priority queue -----
   const banner: BannerSpec | null = useMemo(() => {
-    if (active) {
+    if (active && forgotThresholdMs > 0 && forgotDismissedId !== active.id) {
       const startMs = resolveMs(active.start)
-      if (now - startMs > FORGOT_THRESHOLD_MS) {
+      if (now - startMs > forgotThresholdMs) {
         const startedToday = dayKey(startMs) === dayKey(now)
         return {
           id: 'forgot',
@@ -138,6 +149,7 @@ function Shell({
               label: 'Fix times',
               run: () => setEditRequest({ kind: 'edit', shiftId: active.id }),
             },
+            { label: 'Dismiss', run: () => setForgotDismissedId(active.id) },
           ],
         }
       }
@@ -153,7 +165,7 @@ function Shell({
         actions: [{ label: 'Reload', run: applyUpdate }],
       }
     }
-    if (!clockNoteDismissed && Math.abs(clockOffset) > 2 * 60_000) {
+    if (prefs.showClockWarning && !clockNoteDismissed && Math.abs(clockOffset) > 2 * 60_000) {
       return {
         id: 'clock',
         tone: 'info',
@@ -161,14 +173,15 @@ function Shell({
         actions: [{ label: 'OK', run: () => setClockNoteDismissed(true) }],
       }
     }
-    if (privateMode) {
+    if (privateMode && !privateDismissed) {
       return {
         id: 'private',
         tone: 'info',
         text: "Private browsing detected — you'll need to sign in each time, and offline use is limited.",
+        actions: [{ label: 'OK', run: () => setPrivateDismissed(true) }],
       }
     }
-    if (install.showIOSInstallCard && !installDismissed && tab === 'track') {
+    if (install.showIOSInstallCard && prefs.showInstallHint && !installDismissed && tab === 'track') {
       return {
         id: 'install',
         tone: 'info',
@@ -188,12 +201,17 @@ function Shell({
   }, [
     active,
     now,
+    forgotThresholdMs,
+    forgotDismissedId,
     syncError,
     updateReady,
     applyUpdate,
+    prefs.showClockWarning,
+    prefs.showInstallHint,
     clockNoteDismissed,
     clockOffset,
     privateMode,
+    privateDismissed,
     install.showIOSInstallCard,
     install.iosNeedsSafari,
     installDismissed,
@@ -238,7 +256,11 @@ function Shell({
             openShifts={openShifts}
             openMeta={openMeta}
             flags={flags}
+            jobs={jobs}
+            jobsById={jobsById}
+            forgotThresholdMs={forgotThresholdMs}
             onEdit={setEditRequest}
+            onManageJobs={() => setSettingsOpen(true)}
             showSnack={showSnack}
           />
         ) : (
@@ -246,6 +268,8 @@ function Shell({
             uid={uid}
             candidates={candidates}
             observedActiveId={observedActiveId}
+            jobs={jobs}
+            jobsById={jobsById}
             onEdit={setEditRequest}
           />
         )}
@@ -255,8 +279,10 @@ function Shell({
 
       {settingsOpen && (
         <Settings
+          uid={uid}
           email={email}
           hasActiveShift={active !== null}
+          jobs={jobs}
           onBack={() => setSettingsOpen(false)}
         />
       )}
@@ -267,6 +293,7 @@ function Shell({
           target={editTarget}
           nowMs={now}
           openShifts={openShifts}
+          jobs={jobs}
           onClose={() => setEditRequest(null)}
           onSaved={(notice) =>
             showSnack({ message: notice ?? 'Saved', ttl: notice ? 8000 : 4000 })

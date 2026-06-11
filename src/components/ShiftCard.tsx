@@ -1,16 +1,19 @@
 import { breakMs, shiftMs, workedMs } from '../lib/durations'
+import { swatch } from '../lib/jobs'
 import { dayKey, formatDuration, formatTime, resolveMs } from '../lib/time'
-import type { Shift } from '../types'
+import type { Job, Shift } from '../types'
 
 export type ShiftBadge = 'syncing' | 'badTimes' | 'overlap'
 
 /**
  * One vocabulary everywhere: "Worked" = net, "Shift" = gross, "Breaks" =
  * breaks. The same card renders in Today and History — one code path, the
- * two views can never disagree.
+ * two views can never disagree. A job color stripe + name gives at-a-glance
+ * grouping when multiple jobs are in use.
  */
 export function ShiftCard({
   shift,
+  job,
   nowMs,
   endMs,
   badges = [],
@@ -18,6 +21,7 @@ export function ShiftCard({
   onTap,
 }: {
   shift: Shift
+  job?: Job | undefined
   nowMs: number
   /** effectiveEndMs(shift), passed in to keep derivation in one place. */
   endMs: number | null
@@ -32,55 +36,73 @@ export function ShiftCard({
   const worked = workedMs(shift, nowMs)
   const gross = shiftMs(shift, nowMs)
   const breaks = breakMs(shift, nowMs)
+  const sw = job ? swatch(job.color) : null
 
   return (
     <button
       type="button"
       onClick={onTap}
-      className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-xs active:bg-slate-50"
+      className="relative flex w-full items-stretch gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-white py-3 pr-4 pl-4 text-left shadow-xs transition active:scale-[0.99] active:bg-slate-50"
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-base font-medium text-slate-900 tabular-digits">
-          {formatTime(startMs)} –{' '}
-          {running ? (
-            <span className="text-emerald-700">now</span>
-          ) : (
-            <>
-              {formatTime(endMs)}
-              {overnight && (
-                <sup className="ml-0.5 text-xs text-slate-500" title="Ends the next day">
-                  +1
-                </sup>
-              )}
-            </>
+      {/* Job color accent stripe */}
+      <span
+        aria-hidden
+        className={`absolute inset-y-0 left-0 w-1.5 ${sw ? sw.dot : running ? 'bg-emerald-400' : 'bg-slate-200'}`}
+      />
+      <div className="min-w-0 flex-1 pl-1.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-base font-semibold text-slate-900 tabular-digits">
+            {formatTime(startMs)}
+            <span className="mx-1 font-normal text-slate-400">–</span>
+            {running ? (
+              <span className="font-semibold text-emerald-600">now</span>
+            ) : (
+              <>
+                {formatTime(endMs)}
+                {overnight && (
+                  <sup className="ml-0.5 text-xs font-normal text-slate-400" title="Ends the next day">
+                    +1
+                  </sup>
+                )}
+              </>
+            )}
+          </span>
+          <span className="shrink-0 text-right">
+            <span className="block text-base font-bold text-slate-900 tabular-digits">
+              {formatDuration(worked)}
+            </span>
+          </span>
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-slate-500">
+          {job && (
+            <span className={`inline-flex items-center gap-1 font-medium ${sw!.softText}`}>
+              <span className={`h-2 w-2 rounded-full ${sw!.dot}`} />
+              {job.name}
+            </span>
           )}
-        </span>
-        <span className="text-base font-semibold text-slate-900">
-          Worked {formatDuration(worked)}
-        </span>
-      </div>
-      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
-        <span>
-          Shift {formatDuration(gross)} · Breaks {formatDuration(breaks)}
-        </span>
-        {startedYesterdayLabel && (
-          <span className="text-amber-700">{startedYesterdayLabel}</span>
-        )}
-        {badges.includes('syncing') && (
-          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">
-            ⏳ syncing
+          <span className="tabular-digits">
+            {formatDuration(gross)} shift
+            {breaks > 0 && <> · {formatDuration(breaks)} break</>}
           </span>
-        )}
-        {badges.includes('badTimes') && (
-          <span className="rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700">
-            ⚠ Check times
-          </span>
-        )}
-        {badges.includes('overlap') && (
-          <span className="rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700">
-            ⚠ Overlap
-          </span>
-        )}
+          {startedYesterdayLabel && (
+            <span className="font-medium text-amber-700">{startedYesterdayLabel}</span>
+          )}
+          {badges.includes('syncing') && (
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+              ⏳ syncing
+            </span>
+          )}
+          {badges.includes('badTimes') && (
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+              ⚠ Check times
+            </span>
+          )}
+          {badges.includes('overlap') && (
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+              ⚠ Overlap
+            </span>
+          )}
+        </div>
       </div>
     </button>
   )

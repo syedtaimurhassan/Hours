@@ -133,10 +133,15 @@ function fireBatch(build: (b: ReturnType<typeof writeBatch>) => void): void {
   })
 }
 
-function creationPayload(tapMs: number, stamp: { ms: number; srv: unknown }) {
+function creationPayload(
+  tapMs: number,
+  stamp: { ms: number; srv: unknown },
+  jobId: string | null,
+) {
   return {
     start: stamp,
     end: null,
+    jobId,
     stopClaims: {},
     breaks: {},
     deleted: false,
@@ -152,6 +157,7 @@ export type StartArgs = {
   uid: string
   tapMs: number // captured synchronously in the tap handler
   shiftId: string // crypto.randomUUID(), captured in the tap handler
+  jobId: string | null // workplace chosen on the Track screen
   knownOffline: boolean // latest snapshot was fromCache
 }
 
@@ -164,6 +170,7 @@ export async function startShift({
   uid,
   tapMs,
   shiftId,
+  jobId,
   knownOffline,
 }: StartArgs): Promise<void> {
   const ref = shiftRef(uid, shiftId)
@@ -201,13 +208,13 @@ export async function startShift({
         }
         // Missing / deleted / effectively ended → the lock is free.
       }
-      tx.set(ref, creationPayload(tapMs, liveStamp(tapMs)))
+      tx.set(ref, creationPayload(tapMs, liveStamp(tapMs), jobId))
       tx.set(sRef, { activeShiftId: shiftId, updatedAt: serverTimestamp() })
     })
     if (result.outcome === 'committed') return
   }
   // Optimistic batch: shift doc only — never meta/state from this path.
-  fireBatch((b) => b.set(ref, creationPayload(tapMs, offlineStamp(tapMs))))
+  fireBatch((b) => b.set(ref, creationPayload(tapMs, offlineStamp(tapMs), jobId)))
 }
 
 export type EndArgs = {
@@ -461,6 +468,8 @@ export type ShiftEdit = {
   /** New end, or 'ongoing' to keep a running shift running. */
   end: number | 'ongoing'
   breaks: BreakEdit[]
+  /** Workplace; undefined leaves it unchanged, null clears it. */
+  jobId?: string | null
 }
 
 /**
@@ -477,6 +486,7 @@ export async function saveShiftEdit(
     start: manualStamp(edit.startMs),
     ...meta(),
   }
+  if (edit.jobId !== undefined) updates.jobId = edit.jobId
   if (edit.end !== 'ongoing') {
     updates.end = manualStamp(edit.end)
     for (const dev of Object.keys(shift.stopClaims ?? {})) {
@@ -505,7 +515,7 @@ export async function saveShiftEdit(
 export async function createManualShift(
   uid: string,
   shiftId: string,
-  edit: { startMs: number; endMs: number; breaks: BreakEdit[] },
+  edit: { startMs: number; endMs: number; breaks: BreakEdit[]; jobId: string | null },
 ): Promise<void> {
   const breaks: Record<string, unknown> = {}
   for (const b of edit.breaks) {
@@ -514,6 +524,7 @@ export async function createManualShift(
   const payload = {
     start: manualStamp(edit.startMs),
     end: manualStamp(edit.endMs),
+    jobId: edit.jobId,
     stopClaims: {},
     breaks,
     deleted: false,

@@ -15,11 +15,13 @@ import {
   toDateInputValue,
   toTimeInputValue,
 } from '../lib/time'
+import { getLastJobId } from '../lib/jobs'
 import { useSheetBackButton } from '../lib/useSheetBackButton'
 import { validateDraft } from '../lib/validate'
-import type { Shift } from '../types'
+import type { Job, Shift } from '../types'
 import { BreakEditor, rowToBreakDraft, type BreakRow } from './BreakEditor'
 import { DateTimeField, draftToMs, type DateTimeDraft } from './DateTimeField'
+import { JobSelector } from './JobBits'
 
 export type EditTarget =
   | { kind: 'edit'; shift: Shift; isActive: boolean }
@@ -35,6 +37,7 @@ export function EditShiftSheet({
   target,
   nowMs,
   openShifts,
+  jobs,
   onClose,
   onSaved,
   onDeleted,
@@ -44,6 +47,7 @@ export function EditShiftSheet({
   target: EditTarget
   nowMs: number
   openShifts: Shift[]
+  jobs: Job[]
   onClose: () => void
   onSaved: (notice: string | null) => void
   onDeleted: (shift: Shift) => void
@@ -51,6 +55,14 @@ export function EditShiftSheet({
 }) {
   const editing = target.kind === 'edit' ? target.shift : null
   const isActive = target.kind === 'edit' && target.isActive
+  const activeJobsList = jobs.filter((j) => !j.archived)
+  const initialJobId = editing
+    ? editing.jobId
+    : (() => {
+        const last = getLastJobId()
+        return last && activeJobsList.some((j) => j.id === last) ? last : null
+      })()
+  const [jobId, setJobId] = useState<string | null>(initialJobId)
 
   const initial = useMemo(() => {
     if (editing) {
@@ -111,21 +123,24 @@ export function EditShiftSheet({
     setOngoing(initial.ongoing)
     setEnd(initial.end)
     setRows(initial.rows)
+    setJobId(initialJobId)
     setOverlapError(null)
     setNotice(null)
     setSaveError(null)
     setTouched({ start: false, end: false })
     setSubmitted(false)
     endDateTouched.current = false
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial])
 
   const dirty =
-    JSON.stringify({ start, ongoing, end, rows }) !==
+    JSON.stringify({ start, ongoing, end, rows, jobId }) !==
     JSON.stringify({
       start: initial.start,
       ongoing: initial.ongoing,
       end: initial.end,
       rows: initial.rows,
+      jobId: initialJobId,
     })
 
   const requestClose = (viaBack: boolean): boolean => {
@@ -162,6 +177,7 @@ export function EditShiftSheet({
       id: 'preview',
       start: { ms: startMs, srv: null },
       end: ongoing ? null : { ms: endBound, srv: null },
+      jobId: null,
       stopClaims: {},
       breaks: Object.fromEntries(
         closed.map((b) => [
@@ -255,12 +271,14 @@ export function EditShiftSheet({
           startMs,
           end: ongoing ? 'ongoing' : (endMs as number),
           breaks,
+          jobId,
         })
       } else {
         await createManualShift(uid, crypto.randomUUID(), {
           startMs,
           endMs: endMs as number,
           breaks,
+          jobId,
         })
       }
       onSaved(dstNotice)
@@ -317,6 +335,19 @@ export function EditShiftSheet({
           void save()
         }}
       >
+        {activeJobsList.length > 0 && (
+          <div>
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              Job
+            </span>
+            <JobSelector
+              jobs={activeJobsList}
+              selectedId={jobId}
+              onSelect={setJobId}
+            />
+          </div>
+        )}
+
         <DateTimeField
           label="Start"
           value={start}

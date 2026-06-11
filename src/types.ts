@@ -31,6 +31,8 @@ export type Shift = {
   id: string
   start: Stamp
   end: Stamp | null // null = no committed end
+  /** Workplace this shift belongs to (null = unassigned / legacy shift). */
+  jobId: string | null
   /** First-stop-wins ledger for offline ends, keyed by deviceId. */
   stopClaims: Record<string, Stamp>
   /** Map keyed by breakId — never an array (array LWW destroys concurrent edits). */
@@ -42,6 +44,16 @@ export type Shift = {
   updatedBy: string // deviceId
   /** Set by the snapshot reader when this doc has unsynced local writes. */
   pendingWrite?: boolean
+}
+
+/** A workplace. One shift belongs to one job; you still can't run two at once. */
+export type Job = {
+  id: string
+  name: string
+  color: string // palette key (see lib/jobs.ts JOB_COLORS)
+  archived: boolean
+  order: number
+  createdAt: ServerStamp | null
 }
 
 export type PeriodFilter = 'day' | 'week' | 'month' | 'custom'

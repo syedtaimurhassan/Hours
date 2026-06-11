@@ -1,6 +1,10 @@
 import { useMemo, useRef, useState } from 'react'
+import { BarChart } from '../components/BarChart'
+import { JobSelector } from '../components/JobBits'
 import { ShiftCard, type ShiftBadge } from '../components/ShiftCard'
+import { buildBuckets } from '../lib/chart'
 import { effectiveEndMs, periodTotals } from '../lib/durations'
+import { downloadCsv, shiftsToCsv } from '../lib/export'
 import {
   customRange,
   dayKey,
@@ -20,7 +24,7 @@ import {
 import { useNow } from '../lib/useNow'
 import { useReconcile } from '../lib/useReconcile'
 import { usePeriodShifts } from '../lib/useShifts'
-import type { EditRequest, PeriodFilter, Shift } from '../types'
+import type { EditRequest, Job, PeriodFilter, Shift } from '../types'
 
 const PAGE_SIZE = 50
 const FILTER_KEY = 'hours.lastFilter'
@@ -41,17 +45,21 @@ function loadLastFilter(): PeriodFilter {
   return 'week'
 }
 
-/** History / dashboard: filters, period totals, shifts grouped by day. */
+/** History / dashboard: filters, period totals, chart, shifts grouped by day. */
 export function History({
   uid,
   candidates,
   observedActiveId,
+  jobs,
+  jobsById,
   onEdit,
 }: {
   uid: string
   /** Global open-query docs — merged into reconcile detection. */
   candidates: Shift[]
   observedActiveId: string | null | undefined
+  jobs: Job[]
+  jobsById: Map<string, Job>
   onEdit: (target: EditRequest) => void
 }) {
   const now = useNow(true)
@@ -60,7 +68,10 @@ export function History({
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(Date.now()))
   const [customTo, setCustomTo] = useState(() => toDateInputValue(Date.now()))
   const [limit, setLimit] = useState(PAGE_SIZE)
+  // null = all jobs; otherwise filter the dashboard to one job.
+  const [jobFilter, setJobFilter] = useState<string | null>(null)
   const lastGoodCustom = useRef<PeriodRange | null>(null)
+  const activeJobsList = useMemo(() => jobs.filter((j) => !j.archived), [jobs])
 
   const setFilter = (f: PeriodFilter) => {
     setFilterRaw(f)
@@ -103,17 +114,37 @@ export function History({
     return weekRange(anchorMs)
   }, [filter, anchorMs, customFrom, customTo, customError])
 
-  const { shifts, meta } = usePeriodShifts(uid, range.start, range.end)
+  const { shifts: allShifts, meta } = usePeriodShifts(uid, range.start, range.end)
 
+  // Reconcile over everything (job filter is a view concern, not data).
   const merged = useMemo(() => {
-    const byId = new Map(shifts.map((s) => [s.id, s]))
+    const byId = new Map(allShifts.map((s) => [s.id, s]))
     for (const c of candidates) if (!byId.has(c.id)) byId.set(c.id, c)
     return [...byId.values()]
-  }, [shifts, candidates])
+  }, [allShifts, candidates])
   const flags = useReconcile(uid, merged, observedActiveId)
+
+  // Apply the job filter to the displayed/totaled/charted set.
+  const shifts = useMemo(
+    () => (jobFilter === null ? allShifts : allShifts.filter((s) => s.jobId === jobFilter)),
+    [allShifts, jobFilter],
+  )
 
   const isCurrent = now >= range.start && now < range.end
   const totals = periodTotals(shifts, now)
+  const buckets = useMemo(
+    () => buildBuckets(shifts, range.start, range.end, now),
+    [shifts, range.start, range.end, now],
+  )
+
+  const exportCsv = () => {
+    const csv = shiftsToCsv(
+      shifts,
+      (jobId) => (jobId ? (jobsById.get(jobId)?.name ?? 'Unknown job') : 'No job'),
+      now,
+    )
+    downloadCsv(`hours_${dayKey(range.start)}_${dayKey(range.end - 1)}.csv`, csv)
+  }
 
   const header = useMemo(() => {
     const lastDayMs = range.end - 1
@@ -305,24 +336,56 @@ export function History({
         </div>
       )}
 
+      {/* Per-job filter — only when the user has jobs. */}
+      {activeJobsList.length > 0 && (
+        <div className="mt-3">
+          <JobSelector
+            jobs={activeJobsList}
+            selectedId={jobFilter}
+            onSelect={setJobFilter}
+            allowNone={false}
+          />
+        </div>
+      )}
+
       {/* Totals card */}
       <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-xs">
         <div className="flex items-baseline justify-between">
           <span className="text-2xl font-bold text-slate-900">
             Worked {formatDuration(totals.workedMs)}
           </span>
-          {meta.fromCache && (
+          {meta.fromCache ? (
             <span className="flex items-center gap-1 text-xs text-slate-500">
               <span className="inline-block h-3 w-10 animate-pulse rounded bg-slate-200" />
               updating…
             </span>
+          ) : (
+            shifts.length > 0 && (
+              <button
+                type="button"
+                onClick={exportCsv}
+                className="flex min-h-9 items-center gap-1 rounded-full border border-slate-300 px-3 text-xs font-medium text-slate-600 active:bg-slate-100"
+              >
+                <DownloadIcon /> Export
+              </button>
+            )
           )}
         </div>
         <p className="mt-0.5 text-sm text-slate-500">
           Shifts {formatDuration(totals.shiftMs)} · Breaks{' '}
           {formatDuration(totals.breakMs)}
+          {jobFilter !== null && (
+            <> · {jobsById.get(jobFilter)?.name ?? 'job'}</>
+          )}
         </p>
       </div>
+
+      {/* Worked-time bar chart */}
+      {buckets.length > 0 && shifts.length > 0 && (
+        <div className="mt-3">
+          <BarChart buckets={buckets} />
+        </div>
+      )}
 
       {/* Shift list */}
       {!meta.serverSeen && shifts.length === 0 ? (
@@ -352,6 +415,7 @@ export function History({
                     <ShiftCard
                       key={s.id}
                       shift={s}
+                      job={s.jobId ? jobsById.get(s.jobId) : undefined}
                       nowMs={now}
                       endMs={effectiveEndMs(s)}
                       badges={badgesFor(s)}
@@ -378,5 +442,13 @@ export function History({
         Shifts are shown on the day they started.
       </p>
     </div>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" />
+    </svg>
   )
 }

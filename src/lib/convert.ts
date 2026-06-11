@@ -39,6 +39,7 @@ export function docToShift(id: string, data: DocumentData): Shift {
     id,
     start: toStamp(data.start),
     end: toOptionalStamp(data.end),
+    jobId: typeof data.jobId === 'string' ? data.jobId : null,
     stopClaims,
     breaks,
     deleted: data.deleted === true,

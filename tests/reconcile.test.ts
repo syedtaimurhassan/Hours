@@ -17,6 +17,7 @@ function mkShift(partial: Partial<Shift> & { id: string }): Shift {
   return {
     start: live(T0),
     end: null,
+    jobId: null,
     stopClaims: {},
     breaks: {},
     deleted: false,

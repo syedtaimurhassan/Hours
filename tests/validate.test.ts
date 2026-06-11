@@ -20,6 +20,7 @@ function mkShift(id: string, startMs: number, endMs: number | null): Shift {
     id,
     start: live(startMs),
     end: endMs === null ? null : live(endMs),
+    jobId: null,
     stopClaims: {},
     breaks: {},
     deleted: false,
