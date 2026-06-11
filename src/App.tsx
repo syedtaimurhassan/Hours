@@ -12,7 +12,7 @@ import { SyncBadge } from './components/SyncBadge'
 import { isConfigured } from './firebase'
 import { getClockOffsetMs, subscribeClockOffset } from './lib/clock'
 import { effectiveEndMs } from './lib/durations'
-import { saveShiftEdit, undoDelete } from './lib/shifts'
+import { saveShiftEdit, softDeleteShift, undoDelete } from './lib/shifts'
 import {
   dayKey,
   formatDate,
@@ -114,10 +114,26 @@ function Shell({
     setSnack({ ...s, key: Date.now() })
   }, [])
 
+  // Swipe-to-delete from the lists (destructive → keep an Undo).
+  const onDeleteShift = useCallback(
+    (shiftId: string) => {
+      void softDeleteShift(uid, shiftId)
+      showSnack({
+        message: 'Shift deleted',
+        actions: [{ label: 'Undo', run: () => void undoDelete(uid, shiftId) }],
+      })
+    },
+    [uid, showSnack],
+  )
+
   // Resolve the edit request against the live document — sheets never edit a
   // stale snapshot captured at tap time.
   const editingId = editRequest?.kind === 'edit' ? editRequest.shiftId : null
   const editingShift = useShiftDoc(uid, editingId)
+  // A lingering toast must not overlap the editor's Save button.
+  useEffect(() => {
+    if (editRequest) setSnack(null)
+  }, [editRequest])
   useEffect(() => {
     if (editingId && editingShift === null) {
       // Deleted remotely while the sheet was open.
@@ -258,7 +274,7 @@ function Shell({
 
       <main>
         <h1 className="mx-auto max-w-md px-4 text-[34px] leading-tight font-bold tracking-tight text-label">
-          {tab === 'track' ? 'Track' : 'History'}
+          {tab === 'track' ? 'Timer' : 'Timesheet'}
         </h1>
         <Suspense fallback={<ScreenFallback />}>
           {tab === 'track' ? (
@@ -272,6 +288,7 @@ function Shell({
               forgotThresholdMs={forgotThresholdMs}
               onEdit={setEditRequest}
               onManageJobs={() => setSettingsOpen(true)}
+              onDeleteShift={onDeleteShift}
               showSnack={showSnack}
             />
           ) : (
@@ -282,6 +299,7 @@ function Shell({
               jobs={jobs}
               jobsById={jobsById}
               onEdit={setEditRequest}
+              onDeleteShift={onDeleteShift}
             />
           )}
         </Suspense>

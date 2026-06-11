@@ -181,27 +181,37 @@ export function useShiftDoc(
   uid: string,
   shiftId: string | null,
 ): Shift | null | undefined {
-  const [shift, setShift] = useState<Shift | null | undefined>(
-    shiftId ? undefined : null,
-  )
+  // Track which shiftId the value belongs to, and reset SYNCHRONOUSLY when
+  // shiftId changes (React "adjust state during render" pattern). Otherwise the
+  // hook would return the PREVIOUS id's resolved value (a stale `null`) for one
+  // render after a tap — and App's "deleted remotely" guard would read that
+  // null and close the editor before it ever opens. `undefined` = loading,
+  // `null` = genuinely missing.
+  const [entry, setEntry] = useState<{
+    id: string | null
+    shift: Shift | null | undefined
+  }>(() => ({ id: shiftId, shift: shiftId ? undefined : null }))
+
+  if (entry.id !== shiftId) {
+    setEntry({ id: shiftId, shift: shiftId ? undefined : null })
+  }
+
   useEffect(() => {
-    if (!shiftId) {
-      setShift(null)
-      return
-    }
-    setShift(undefined)
+    if (!shiftId) return
     return onSnapshot(
       doc(db, 'users', uid, 'shifts', shiftId),
       (snap) =>
-        setShift(
-          snap.exists()
+        setEntry({
+          id: shiftId,
+          shift: snap.exists()
             ? docToShift(snap.id, snap.data({ serverTimestamps: 'estimate' }))
             : null,
-        ),
+        }),
       () => {},
     )
   }, [uid, shiftId])
-  return shift
+
+  return entry.id === shiftId ? entry.shift : shiftId ? undefined : null
 }
 
 /**

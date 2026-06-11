@@ -13,7 +13,7 @@ export function BottomNav({
       <div className="mx-auto flex max-w-md">
         <TabButton
           active={tab === 'track'}
-          label="Track"
+          label="Timer"
           onClick={() => onChange('track')}
           icon={(filled) => (
             <svg viewBox="0 0 24 24" className="h-7 w-7" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={filled ? 0 : 1.7}>
@@ -24,11 +24,12 @@ export function BottomNav({
         />
         <TabButton
           active={tab === 'history'}
-          label="History"
+          label="Timesheet"
           onClick={() => onChange('history')}
           icon={(filled) => (
-            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={filled ? 2.4 : 1.7} strokeLinecap="round">
-              <path d="M5 7h14M5 12h14M5 17h9" />
+            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={filled ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2.5" fill={filled ? 'currentColor' : 'none'} />
+              <path d="M8 9h8M8 13h8M8 17h5" stroke={filled ? '#fff' : 'currentColor'} />
             </svg>
           )}
         />

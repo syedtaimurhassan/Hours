@@ -3,6 +3,7 @@ import { BarChart } from '../components/BarChart'
 import { JobSelector } from '../components/JobBits'
 import { LiveTotal } from '../components/Live'
 import { ShiftCard, type ShiftBadge } from '../components/ShiftCard'
+import { SwipeRow } from '../components/SwipeRow'
 import { GroupHeader, ListGroup, Segmented } from '../components/ui'
 import { buildBuckets } from '../lib/chart'
 import { effectiveEndMs, periodTotals } from '../lib/durations'
@@ -55,6 +56,7 @@ export function History({
   jobs,
   jobsById,
   onEdit,
+  onDeleteShift,
 }: {
   uid: string
   /** Global open-query docs — merged into reconcile detection. */
@@ -63,6 +65,7 @@ export function History({
   jobs: Job[]
   jobsById: Map<string, Job>
   onEdit: (target: EditRequest) => void
+  onDeleteShift: (shiftId: string) => void
 }) {
   // Layout clock — ticking is delegated to the LiveTotal/ShiftCard leaves.
   const now = useNow(false)
@@ -405,16 +408,24 @@ export function History({
                   </span>
                 </div>
                 <ListGroup>
-                  {take.map((s) => (
-                    <ShiftCard
-                      key={s.id}
-                      shift={s}
-                      job={s.jobId ? jobsById.get(s.jobId) : undefined}
-                      endMs={effectiveEndMs(s)}
-                      badges={badgesFor(s)}
-                      onTap={() => onEdit({ kind: 'edit', shiftId: s.id })}
-                    />
-                  ))}
+                  {take.map((s) => {
+                    const end = effectiveEndMs(s)
+                    return (
+                      <SwipeRow
+                        key={s.id}
+                        disabled={end === null}
+                        onDelete={() => onDeleteShift(s.id)}
+                      >
+                        <ShiftCard
+                          shift={s}
+                          job={s.jobId ? jobsById.get(s.jobId) : undefined}
+                          endMs={end}
+                          badges={badgesFor(s)}
+                          onTap={() => onEdit({ kind: 'edit', shiftId: s.id })}
+                        />
+                      </SwipeRow>
+                    )
+                  })}
                 </ListGroup>
               </section>
             )

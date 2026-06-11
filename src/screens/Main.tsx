@@ -5,6 +5,7 @@ import { LiveTotal } from '../components/Live'
 import { LongShiftSheet } from '../components/LongShiftSheet'
 import { ShiftCard, type ShiftBadge } from '../components/ShiftCard'
 import type { Snack } from '../components/Snackbar'
+import { SwipeRow } from '../components/SwipeRow'
 import { GroupHeader, ListGroup } from '../components/ui'
 import { effectiveEndMs, openBreakId } from '../lib/durations'
 import { getLastJobId, setLastJobId } from '../lib/jobs'
@@ -44,6 +45,7 @@ export function Main({
   forgotThresholdMs,
   onEdit,
   onManageJobs,
+  onDeleteShift,
   showSnack,
 }: {
   uid: string
@@ -55,6 +57,7 @@ export function Main({
   forgotThresholdMs: number
   onEdit: (target: EditRequest) => void
   onManageJobs: () => void
+  onDeleteShift: (shiftId: string) => void
   showSnack: (snack: Omit<Snack, 'key'>) => void
 }) {
   // Layout clock — updates on data/visibility, NOT every second. Per-second
@@ -314,17 +317,22 @@ export function Main({
               const startedBeforeToday =
                 end === null && dayKey(resolveMs(s.start)) !== todayKey
               return (
-                <ShiftCard
+                <SwipeRow
                   key={s.id}
-                  shift={s}
-                  job={s.jobId ? jobsById.get(s.jobId) : undefined}
-                  endMs={end}
-                  badges={badgesFor(s)}
-                  {...(startedBeforeToday
-                    ? { startedYesterdayLabel: `since yesterday ${formatTime(resolveMs(s.start))}` }
-                    : {})}
-                  onTap={() => onEdit({ kind: 'edit', shiftId: s.id })}
-                />
+                  disabled={end === null}
+                  onDelete={() => onDeleteShift(s.id)}
+                >
+                  <ShiftCard
+                    shift={s}
+                    job={s.jobId ? jobsById.get(s.jobId) : undefined}
+                    endMs={end}
+                    badges={badgesFor(s)}
+                    {...(startedBeforeToday
+                      ? { startedYesterdayLabel: `since yesterday ${formatTime(resolveMs(s.start))}` }
+                      : {})}
+                    onTap={() => onEdit({ kind: 'edit', shiftId: s.id })}
+                  />
+                </SwipeRow>
               )
             })}
           </ListGroup>
