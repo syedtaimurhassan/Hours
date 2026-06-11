@@ -31,16 +31,23 @@ Two one-time setups are needed: **Firebase** (your database + login) and
 5. **Register the web app:** Project overview (gear icon) → **Project
    settings** → **General** → under *Your apps* click the web icon `</>` →
    nickname `hours` → (do NOT tick Firebase Hosting) → Register app.
-   You'll see a `firebaseConfig = { ... }` code block — **copy it**.
+   You'll see a `firebaseConfig = { ... }` code block — **copy the values**.
 
-6. **Paste the config into the app:** open [`src/firebase.ts`](src/firebase.ts)
-   and replace the placeholder values with yours. (This config is public by
-   design — security comes from the rules, not from hiding it.)
+6. **Local config:** copy [`.env.example`](.env.example) to `.env.local` and
+   fill in the six `VITE_FIREBASE_*` values. `.env.local` is gitignored — the
+   config is never committed to the repo.
 
-7. **Authorize your future domain:** Authentication → **Settings** →
+7. **Authorize your domain:** Authentication → **Settings** →
    **Authorized domains** → **Add domain** → `<your-github-username>.github.io`.
    Without this, login works locally but fails in production with
    `auth/unauthorized-domain`.
+
+8. **Restrict the API key (recommended):** the config is inlined into the
+   client bundle (normal for Firebase web apps — it is *not* a secret), so lock
+   it down: Google Cloud console → **APIs & Services → Credentials** → your
+   browser key → **Application restrictions: HTTP referrers** → add
+   `https://<your-github-username>.github.io/*`. Security ultimately rests on
+   the Firestore rules (step 4) + authorized domains (step 7).
 
 ---
 
@@ -61,7 +68,22 @@ git push -u origin main
 Then on github.com → your repo → **Settings → Pages** → under *Build and
 deployment* set **Source: GitHub Actions**.
 
-Every push to `main` now runs tests, builds, and deploys. Your app will be at:
+**Add the Firebase config as Actions secrets** (required — the deployed build
+reads these; without them the live app shows "App configuration error"):
+repo → **Settings → Secrets and variables → Actions → New repository secret**,
+and add all six with the same values as your `.env.local`:
+
+```
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+```
+
+Every push to `main` now runs tests, builds (injecting those secrets), and
+deploys. Your app will be at:
 
 ```
 https://<your-github-username>.github.io/Hours/
