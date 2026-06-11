@@ -57,10 +57,11 @@ export function EditShiftSheet({
   const isActive = target.kind === 'edit' && target.isActive
   const activeJobsList = jobs.filter((j) => !j.archived)
   const initialJobId = editing
-    ? editing.jobId
+    ? (editing.jobId ?? activeJobsList[0]?.id ?? null)
     : (() => {
         const last = getLastJobId()
-        return last && activeJobsList.some((j) => j.id === last) ? last : null
+        if (last && activeJobsList.some((j) => j.id === last)) return last
+        return activeJobsList[0]?.id ?? null
       })()
   const [jobId, setJobId] = useState<string | null>(initialJobId)
 
@@ -315,13 +316,13 @@ export function EditShiftSheet({
   return (
     <Sheet onRequestClose={() => requestClose(false)}>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">
+        <h2 className="text-lg font-semibold text-label">
           {editing ? 'Edit shift' : 'Add shift'}
         </h2>
         <button
           type="button"
           aria-label="Close"
-          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 active:bg-slate-100"
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-secondary active:bg-fill"
           onClick={() => requestClose(false)}
         >
           ✕
@@ -337,13 +338,14 @@ export function EditShiftSheet({
       >
         {activeJobsList.length > 0 && (
           <div>
-            <span className="mb-1 block text-sm font-medium text-slate-700">
+            <span className="mb-1 block text-sm font-medium text-label">
               Job
             </span>
             <JobSelector
               jobs={activeJobsList}
               selectedId={jobId}
               onSelect={setJobId}
+              allowNone={false}
             />
           </div>
         )}
@@ -357,17 +359,17 @@ export function EditShiftSheet({
 
         {isActive && ongoing ? (
           <div>
-            <span className="mb-1 block text-sm font-medium text-slate-700">
+            <span className="mb-1 block text-sm font-medium text-label">
               End
             </span>
             <div className="flex items-center gap-3">
-              <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-800">
+              <span className="rounded-full bg-fill px-3 py-1.5 text-sm font-medium text-brand-deep">
                 Ongoing
                 {startMs !== null && ` — ${formatDuration(nowMs - startMs)}`}
               </span>
               <button
                 type="button"
-                className="min-h-11 text-sm font-medium text-emerald-700 underline"
+                className="min-h-11 text-sm font-medium text-brand-deep underline"
                 onClick={() => {
                   setOngoing(false)
                   setEnd({
@@ -395,7 +397,7 @@ export function EditShiftSheet({
             {validation.suggestOvernight && startMs !== null && (
               <button
                 type="button"
-                className="mt-1 flex min-h-11 items-center text-sm font-medium text-emerald-700 underline"
+                className="mt-1 flex min-h-11 items-center text-sm font-medium text-brand-deep underline"
                 onClick={applyOvernightFix}
               >
                 Ended the next day? → use{' '}
@@ -405,7 +407,7 @@ export function EditShiftSheet({
             {isActive && !ongoing && (
               <button
                 type="button"
-                className="mt-1 flex min-h-11 items-center text-sm font-medium text-slate-500 underline"
+                className="mt-1 flex min-h-11 items-center text-sm font-medium text-secondary underline"
                 onClick={() => setOngoing(true)}
               >
                 Keep ongoing instead
@@ -442,30 +444,30 @@ export function EditShiftSheet({
             {validation.warning}
           </p>
         )}
-        {notice && <p className="text-sm text-slate-500">{notice}</p>}
+        {notice && <p className="text-sm text-secondary">{notice}</p>}
         {saveError && (
           <p role="alert" className="text-sm font-medium text-red-600">
             {saveError}
           </p>
         )}
         {preview && (
-          <p className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700">
+          <p className="rounded-lg bg-fill px-3 py-2 text-sm font-medium text-label">
             {preview}
           </p>
         )}
 
         <button
           type="submit"
-          disabled={!validation.valid || saving || (!dirty && !!editing)}
-          className="min-h-12 rounded-xl bg-emerald-600 text-base font-semibold text-white disabled:opacity-40"
+          disabled={!validation.valid || saving}
+          className="min-h-12 rounded-xl bg-brand text-[17px] font-semibold text-white disabled:opacity-40"
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
 
         {editing && (
-          <div className="mt-2 border-t border-slate-200 pt-3 text-center">
+          <div className="mt-2 border-t border-separator pt-3 text-center">
             {isActive ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-secondary">
                 To delete this shift, end it first.
               </p>
             ) : (

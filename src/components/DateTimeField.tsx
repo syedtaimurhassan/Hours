@@ -37,7 +37,7 @@ export function DateTimeField({
   const ms = draftToMs(value)
   return (
     <div>
-      <span className="mb-1 block text-sm font-medium text-slate-700">
+      <span className="mb-1.5 block text-[13px] font-semibold tracking-wide text-secondary uppercase">
         {label}
       </span>
       <div className="flex gap-2">
@@ -59,10 +59,10 @@ export function DateTimeField({
         />
       </div>
       {error ? (
-        <p className="mt-1 text-sm text-red-600">{error}</p>
+        <p className="mt-1 text-[13px] text-red-600">{error}</p>
       ) : (
         ms !== null && (
-          <p className="mt-1 text-sm text-slate-500">{formatDateTime(ms)}</p>
+          <p className="mt-1 text-[13px] text-secondary">{formatDateTime(ms)}</p>
         )
       )}
     </div>
@@ -70,7 +70,7 @@ export function DateTimeField({
 }
 
 function inputClass(invalid: boolean): string {
-  return `min-h-11 flex-1 rounded-lg border bg-white px-3 py-2 text-base text-slate-900 ${
-    invalid ? 'border-red-400' : 'border-slate-300'
+  return `min-h-12 flex-1 rounded-xl border bg-card px-3.5 text-[17px] text-label ${
+    invalid ? 'border-red-400' : 'border-separator'
   }`
 }

@@ -16,7 +16,6 @@ import {
   saveShiftEdit,
   startShift,
   undoDelete,
-  undoEnd,
   OpError,
 } from '../lib/shifts'
 import { TZ, dayKey, dayRange, formatTime, resolveMs } from '../lib/time'
@@ -150,17 +149,7 @@ export function Main({
     setLastJobId(selectedJobId)
     setPending('starting')
     startShift({ uid, tapMs, shiftId, jobId: selectedJobId, knownOffline })
-      .then(() =>
-        showSnack({
-          message: `Started at ${formatTime(tapMs)}`,
-          actions: [
-            {
-              label: 'Undo',
-              run: () => void discardActiveShift(uid, shiftId, knownOffline),
-            },
-          ],
-        }),
-      )
+      .then(() => showSnack({ message: `Started at ${formatTime(tapMs)}`, ttl: 3000 }))
       .catch(opFailed)
   }
 
@@ -171,14 +160,8 @@ export function Main({
       .then(({ closedBreakId }) =>
         showSnack({
           message: `Ended at ${formatTime(tapMs)}${closedBreakId ? ', break closed' : ''}`,
-          actions: [
-            {
-              label: 'Undo',
-              run: () =>
-                void undoEnd(uid, shift.id, closedBreakId, knownOffline).catch(opFailed),
-            },
-            { label: 'Edit', run: () => onEdit({ kind: 'edit', shiftId: shift.id }) },
-          ],
+          ttl: 4000,
+          actions: [{ label: 'Edit', run: () => onEdit({ kind: 'edit', shiftId: shift.id }) }],
         }),
       )
       .catch(opFailed)
@@ -266,6 +249,7 @@ export function Main({
             selectedId={selectedJobId}
             onSelect={setSelectedJobId}
             onManage={onManageJobs}
+            allowNone={false}
           />
         </div>
       )}
