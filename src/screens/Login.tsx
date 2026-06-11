@@ -74,12 +74,12 @@ export function Login({ sessionExpired }: { sessionExpired: boolean }) {
   const registerTooShort = mode === 'register' && password.length < 6
 
   return (
-    <div className="safe-top flex min-h-dvh flex-col items-center justify-center bg-slate-50 px-4">
+    <div className="safe-top flex min-h-dvh flex-col items-center justify-center bg-grouped px-4">
       <div className="w-full max-w-sm">
-        <h1 className="mb-1 text-center text-3xl font-bold text-slate-900">
+        <h1 className="mb-1 text-center text-3xl font-bold text-label">
           Hours
         </h1>
-        <p className="mb-6 text-center text-sm text-slate-500">
+        <p className="mb-6 text-center text-sm text-secondary">
           {sessionExpired
             ? 'Your session expired — please sign in again.'
             : isStandalone()
@@ -94,7 +94,7 @@ export function Login({ sessionExpired }: { sessionExpired: boolean }) {
                 key={m}
                 type="button"
                 className={`min-h-10 rounded-lg ${
-                  mode === m ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                  mode === m ? 'bg-white text-label shadow-xs' : 'text-secondary'
                 }`}
                 onClick={() => switchMode(m)}
               >
@@ -105,7 +105,7 @@ export function Login({ sessionExpired }: { sessionExpired: boolean }) {
 
           <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
             <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
+              <span className="mb-1 block text-sm font-medium text-secondary">
                 Email
               </span>
               <input
@@ -115,13 +115,13 @@ export function Login({ sessionExpired }: { sessionExpired: boolean }) {
                 autoComplete="email"
                 inputMode="email"
                 autoCapitalize="none"
-                className="min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 text-base"
+                className="min-h-12 w-full rounded-lg border border-separator bg-white px-3 text-base"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
+              <span className="mb-1 block text-sm font-medium text-secondary">
                 Password
               </span>
               <div className="relative">
@@ -132,20 +132,20 @@ export function Login({ sessionExpired }: { sessionExpired: boolean }) {
                     mode === 'signin' ? 'current-password' : 'new-password'
                   }
                   enterKeyHint="go"
-                  className="min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 pr-14 text-base"
+                  className="min-h-12 w-full rounded-lg border border-separator bg-white px-3 pr-14 text-base"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 px-3 text-sm font-medium text-slate-500"
+                  className="absolute inset-y-0 right-0 px-3 text-sm font-medium text-secondary"
                   onClick={() => setShowPassword((s) => !s)}
                 >
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
               {mode === 'register' && (
-                <span className="mt-1 block text-xs text-slate-500">
+                <span className="mt-1 block text-xs text-secondary">
                   At least 6 characters
                 </span>
               )}
@@ -176,7 +176,7 @@ export function Login({ sessionExpired }: { sessionExpired: boolean }) {
             )}
 
             {resetSentTo && (
-              <div role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              <div role="status" className="rounded-lg bg-card px-3 py-2 text-sm text-brand-deep">
                 If an account exists for <strong>{resetSentTo}</strong>, a reset
                 link has been sent. Check your spam folder.{' '}
                 <button
@@ -195,7 +195,7 @@ export function Login({ sessionExpired }: { sessionExpired: boolean }) {
             <button
               type="submit"
               disabled={submitting || cooldown || registerTooShort}
-              className="mt-1 flex min-h-12 items-center justify-center rounded-xl bg-emerald-600 text-base font-semibold text-white disabled:opacity-40"
+              className="mt-1 flex min-h-12 items-center justify-center rounded-xl bg-brand text-base font-semibold text-white disabled:opacity-40"
             >
               {submitting ? (
                 <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
@@ -209,7 +209,7 @@ export function Login({ sessionExpired }: { sessionExpired: boolean }) {
             {mode === 'signin' && !error && (
               <button
                 type="button"
-                className="text-sm font-medium text-slate-500 underline"
+                className="text-sm font-medium text-secondary underline"
                 onClick={() => void sendReset()}
               >
                 Forgot password?

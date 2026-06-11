@@ -1,9 +1,6 @@
 export type Tab = 'track' | 'history'
 
-/**
- * Labeled text + icon tabs in thumb reach. The History glyph is a list —
- * never a clock, which is ambiguous in a timer app.
- */
+/** Apple-style frosted tab bar. */
 export function BottomNav({
   tab,
   onChange,
@@ -12,28 +9,28 @@ export function BottomNav({
   onChange: (tab: Tab) => void
 }) {
   return (
-    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur">
+    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-separator bg-card/85 backdrop-blur-xl">
       <div className="mx-auto flex max-w-md">
         <TabButton
           active={tab === 'track'}
           label="Track"
           onClick={() => onChange('track')}
-          icon={
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 3" />
+          icon={(filled) => (
+            <svg viewBox="0 0 24 24" className="h-7 w-7" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={filled ? 0 : 1.7}>
+              <circle cx="12" cy="12" r="9" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={filled ? 0 : 1.7} />
+              <path d="M12 7.5v4.8l3 1.8" fill="none" stroke={filled ? '#fff' : 'currentColor'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          }
+          )}
         />
         <TabButton
           active={tab === 'history'}
           label="History"
           onClick={() => onChange('history')}
-          icon={
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M4 6h16M4 12h16M4 18h10" />
+          icon={(filled) => (
+            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={filled ? 2.4 : 1.7} strokeLinecap="round">
+              <path d="M5 7h14M5 12h14M5 17h9" />
             </svg>
-          }
+          )}
         />
       </div>
     </nav>
@@ -48,7 +45,7 @@ function TabButton({
 }: {
   active: boolean
   label: string
-  icon: React.ReactNode
+  icon: (filled: boolean) => React.ReactNode
   onClick: () => void
 }) {
   return (
@@ -56,20 +53,14 @@ function TabButton({
       type="button"
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
-      className={`relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs ${
-        active ? 'font-semibold text-emerald-700' : 'font-medium text-slate-500'
+      className={`flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 pb-1 ${
+        active ? 'text-brand-deep' : 'text-tertiary'
       }`}
     >
-      {/* Non-color cue (top indicator bar + bolder weight) so the active tab
-          survives color-blindness, not green-vs-gray alone. */}
-      {active && (
-        <span
-          aria-hidden
-          className="absolute inset-x-6 top-0 h-0.5 rounded-full bg-emerald-600"
-        />
-      )}
-      {icon}
-      {label}
+      {icon(active)}
+      <span className={`text-[11px] ${active ? 'font-semibold' : 'font-medium'}`}>
+        {label}
+      </span>
     </button>
   )
 }

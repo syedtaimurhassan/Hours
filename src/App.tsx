@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import { Banner, type BannerSpec } from './components/Banner'
 import { BottomNav, type Tab } from './components/BottomNav'
 import {
@@ -28,11 +28,18 @@ import { usePrefs } from './lib/usePrefs'
 import { usePWAUpdate } from './lib/usePWAUpdate'
 import { useActiveFlag, useReconcile } from './lib/useReconcile'
 import { useOpenShifts, useShiftDoc, useSyncError } from './lib/useShifts'
-import { History } from './screens/History'
 import { Login } from './screens/Login'
 import { Main } from './screens/Main'
-import { Settings } from './screens/Settings'
 import type { EditRequest, Shift } from './types'
+
+// Code-split the non-default screens so the initial load only parses Track.
+// The service worker precaches the chunks, so a tab switch is instant offline.
+const History = lazy(() =>
+  import('./screens/History').then((m) => ({ default: m.History })),
+)
+const Settings = lazy(() =>
+  import('./screens/Settings').then((m) => ({ default: m.Settings })),
+)
 
 const FORGOT_HOURS_TO_MS = 3_600_000
 
@@ -228,18 +235,18 @@ function Shell({
   )
 
   return (
-    <div className="min-h-dvh bg-slate-50">
-      <header className="safe-top sticky top-0 z-20 border-b border-slate-200 bg-slate-50/95 backdrop-blur">
-        <div className="mx-auto flex min-h-14 max-w-md items-center gap-3 px-4">
-          <h1 className="text-lg font-bold text-slate-900">Hours</h1>
+    <div className="min-h-dvh bg-grouped">
+      {/* Minimal toolbar — large titles live in the screens (Apple style). */}
+      <header className="safe-top sticky top-0 z-20 bg-grouped/80 backdrop-blur-xl">
+        <div className="mx-auto flex min-h-12 max-w-md items-center gap-2 px-4">
           <SyncBadge meta={openMeta} />
           <button
             type="button"
             aria-label="Settings"
-            className="ml-auto flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 active:bg-slate-200"
+            className="ml-auto flex min-h-10 min-w-10 items-center justify-center rounded-full text-secondary active:bg-fill"
             onClick={() => setSettingsOpen(true)}
           >
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.9 2.9l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.2a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.9-2.9l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.2a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.9-2.9l.1.1a1.7 1.7 0 001.9.3h.1a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.2a1.7 1.7 0 001 1.5h.1a1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.9 2.9l-.1.1a1.7 1.7 0 00-.3 1.9v.1a1.7 1.7 0 001.5 1h.2a2 2 0 110 4h-.2a1.7 1.7 0 00-1.5 1z" />
             </svg>
@@ -250,41 +257,48 @@ function Shell({
       <Banner banner={banner} />
 
       <main>
-        {tab === 'track' ? (
-          <Main
-            uid={uid}
-            openShifts={openShifts}
-            openMeta={openMeta}
-            flags={flags}
-            jobs={jobs}
-            jobsById={jobsById}
-            forgotThresholdMs={forgotThresholdMs}
-            onEdit={setEditRequest}
-            onManageJobs={() => setSettingsOpen(true)}
-            showSnack={showSnack}
-          />
-        ) : (
-          <History
-            uid={uid}
-            candidates={candidates}
-            observedActiveId={observedActiveId}
-            jobs={jobs}
-            jobsById={jobsById}
-            onEdit={setEditRequest}
-          />
-        )}
+        <h1 className="mx-auto max-w-md px-4 text-[34px] leading-tight font-bold tracking-tight text-label">
+          {tab === 'track' ? 'Track' : 'History'}
+        </h1>
+        <Suspense fallback={<ScreenFallback />}>
+          {tab === 'track' ? (
+            <Main
+              uid={uid}
+              openShifts={openShifts}
+              openMeta={openMeta}
+              flags={flags}
+              jobs={jobs}
+              jobsById={jobsById}
+              forgotThresholdMs={forgotThresholdMs}
+              onEdit={setEditRequest}
+              onManageJobs={() => setSettingsOpen(true)}
+              showSnack={showSnack}
+            />
+          ) : (
+            <History
+              uid={uid}
+              candidates={candidates}
+              observedActiveId={observedActiveId}
+              jobs={jobs}
+              jobsById={jobsById}
+              onEdit={setEditRequest}
+            />
+          )}
+        </Suspense>
       </main>
 
       <BottomNav tab={tab} onChange={setTab} />
 
       {settingsOpen && (
-        <Settings
-          uid={uid}
-          email={email}
-          hasActiveShift={active !== null}
-          jobs={jobs}
-          onBack={() => setSettingsOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <Settings
+            uid={uid}
+            email={email}
+            hasActiveShift={active !== null}
+            jobs={jobs}
+            onBack={() => setSettingsOpen(false)}
+          />
+        </Suspense>
       )}
 
       {editTarget && (
@@ -339,25 +353,33 @@ function Shell({
 
 function Splash() {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-slate-50">
-      <span className="text-3xl font-bold text-slate-900">Hours</span>
-      <span className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600" />
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-grouped">
+      <span className="text-[34px] font-bold tracking-tight text-label">Hours</span>
+      <span className="h-6 w-6 animate-spin rounded-full border-2 border-tertiary border-t-brand" />
+    </div>
+  )
+}
+
+/** Lightweight placeholder while a code-split screen chunk loads. */
+function ScreenFallback() {
+  return (
+    <div className="mx-auto max-w-md px-4 pt-6">
+      <div className="card-shadow h-28 animate-pulse rounded-2xl bg-card" />
     </div>
   )
 }
 
 function ConfigError() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-slate-50 px-6">
+    <div className="flex min-h-dvh items-center justify-center bg-grouped px-6">
       <div className="max-w-sm text-center">
         <p className="text-4xl">🔧</p>
-        <h1 className="mt-2 text-lg font-semibold text-slate-900">
+        <h1 className="mt-2 text-[19px] font-semibold text-label">
           App configuration error
         </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          This is a setup problem, not your fault. The Firebase config in{' '}
-          <code className="rounded bg-slate-200 px-1">src/firebase.ts</code>{' '}
-          still has placeholder values.
+        <p className="mt-1 text-[15px] text-secondary">
+          This is a setup problem, not your fault. The Firebase config isn't
+          available to the app yet.
         </p>
       </div>
     </div>

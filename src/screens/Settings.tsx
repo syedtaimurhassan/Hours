@@ -66,26 +66,26 @@ export function Settings({
   }
 
   return (
-    <div className="fixed inset-0 z-30 overflow-y-auto bg-slate-50">
+    <div className="fixed inset-0 z-30 overflow-y-auto bg-grouped">
       <div className="safe-top mx-auto max-w-md px-4 pb-12">
         <header className="flex min-h-14 items-center gap-2">
           <button
             type="button"
             aria-label="Back"
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-xl text-slate-500 active:bg-slate-100"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-xl text-secondary active:bg-fill"
             onClick={onBack}
           >
             ‹
           </button>
-          <h1 className="text-lg font-semibold text-slate-900">Settings</h1>
+          <h1 className="text-lg font-semibold text-label">Settings</h1>
         </header>
 
         <div className="mt-2 flex flex-col gap-6">
           {/* Account */}
           <Section title="Account">
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <p className="text-xs text-slate-500">Signed in as</p>
-              <p className="text-base font-semibold break-all text-slate-900">
+            <div className="rounded-xl border border-separator bg-card px-4 py-3">
+              <p className="text-xs text-secondary">Signed in as</p>
+              <p className="text-base font-semibold break-all text-label">
                 {email}
               </p>
             </div>
@@ -98,7 +98,7 @@ export function Settings({
 
           {/* Reminders & tips — the controls for "popups that won't go away" */}
           <Section title="Reminders & tips">
-            <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="divide-y divide-separator overflow-hidden rounded-xl border border-separator bg-card">
               <Row label="Install hint" desc="Show the Add-to-Home-Screen card">
                 <Toggle
                   on={prefs.showInstallHint}
@@ -137,7 +137,7 @@ export function Settings({
               {canPromptInstall && (
                 <button
                   type="button"
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-base font-medium text-emerald-700 active:bg-slate-100"
+                  className="rounded-xl border border-separator bg-card px-4 py-3 text-left text-base font-medium text-brand-deep active:bg-fill"
                   onClick={promptInstall}
                 >
                   Install app
@@ -146,7 +146,7 @@ export function Settings({
               <button
                 type="button"
                 disabled={signingOut}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-base font-medium text-red-600 active:bg-red-50 disabled:opacity-50"
+                className="rounded-xl border border-separator bg-card px-4 py-3 text-left text-base font-medium text-red-600 active:bg-red-50 disabled:opacity-50"
                 onClick={() => void signOut()}
               >
                 {signingOut ? 'Signing out…' : 'Sign out'}
@@ -156,8 +156,8 @@ export function Settings({
                   {blocked}
                 </p>
               )}
-              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-                <p className="font-medium text-slate-700">Hours v{__APP_VERSION__}</p>
+              <div className="rounded-xl border border-separator bg-card px-4 py-3 text-sm text-secondary">
+                <p className="font-medium text-label">Hours v{__APP_VERSION__}</p>
                 <p className="mt-1">
                   Shifts are shown on the day they started. Times are Danish time
                   (Europe/Copenhagen). Your data is stored in the cloud once the
@@ -183,10 +183,10 @@ function Section({
 }) {
   return (
     <section>
-      <h2 className="mb-2 text-sm font-semibold tracking-wide text-slate-500 uppercase">
+      <h2 className="mb-2 text-sm font-semibold tracking-wide text-secondary uppercase">
         {title}
       </h2>
-      {subtitle && <p className="mb-2 -mt-1 text-sm text-slate-500">{subtitle}</p>}
+      {subtitle && <p className="mb-2 -mt-1 text-sm text-secondary">{subtitle}</p>}
       {children}
     </section>
   )
@@ -204,8 +204,8 @@ function Row({
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3">
       <div className="min-w-0">
-        <p className="text-base font-medium text-slate-800">{label}</p>
-        {desc && <p className="text-xs text-slate-500">{desc}</p>}
+        <p className="text-base font-medium text-label">{label}</p>
+        {desc && <p className="text-xs text-secondary">{desc}</p>}
       </div>
       <div className="shrink-0">{children}</div>
     </div>
@@ -219,10 +219,10 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
       role="switch"
       aria-checked={on}
       onClick={() => onChange(!on)}
-      className={`relative h-7 w-12 rounded-full transition-colors ${on ? 'bg-emerald-500' : 'bg-slate-300'}`}
+      className={`relative h-7 w-12 rounded-full transition-colors ${on ? 'bg-brand' : 'bg-slate-300'}`}
     >
       <span
-        className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-5' : 'translate-x-0.5'}`}
+        className={`absolute top-0.5 h-6 w-6 rounded-full bg-card shadow transition-transform ${on ? 'translate-x-5' : 'translate-x-0.5'}`}
       />
     </button>
   )
@@ -238,14 +238,14 @@ function Segmented({
   onChange: (v: string) => void
 }) {
   return (
-    <div className="flex rounded-lg bg-slate-100 p-0.5">
+    <div className="flex rounded-lg bg-fill p-0.5">
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
           className={`min-h-9 rounded-md px-2.5 text-sm font-medium ${
-            value === o.value ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+            value === o.value ? 'bg-card text-label shadow-xs' : 'text-secondary'
           }`}
         >
           {o.label}
@@ -263,11 +263,11 @@ function JobsManager({ uid, jobs }: { uid: string; jobs: Job[] }) {
   const archived = jobs.filter((j) => j.archived)
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-xl border border-separator bg-card">
       {active.length === 0 && !adding && (
-        <p className="px-4 py-3 text-sm text-slate-500">No jobs yet.</p>
+        <p className="px-4 py-3 text-sm text-secondary">No jobs yet.</p>
       )}
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-separator">
         {active.map((job) =>
           editing === job.id ? (
             <JobForm
@@ -288,13 +288,13 @@ function JobsManager({ uid, jobs }: { uid: string; jobs: Job[] }) {
               key={job.id}
               type="button"
               onClick={() => setEditing(job.id)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50"
+              className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-grouped"
             >
               <span className={`h-3.5 w-3.5 rounded-full ${swatch(job.color).dot}`} />
-              <span className="flex-1 text-base font-medium text-slate-800">
+              <span className="flex-1 text-base font-medium text-label">
                 {job.name}
               </span>
-              <span className="text-sm text-slate-400">Edit</span>
+              <span className="text-sm text-tertiary">Edit</span>
             </button>
           ),
         )}
@@ -313,7 +313,7 @@ function JobsManager({ uid, jobs }: { uid: string; jobs: Job[] }) {
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="flex w-full min-h-11 items-center gap-2 px-4 py-3 text-left text-base font-medium text-emerald-700 active:bg-slate-50"
+          className="flex w-full min-h-11 items-center gap-2 px-4 py-3 text-left text-base font-medium text-brand-deep active:bg-grouped"
         >
           + Add job
         </button>
@@ -324,7 +324,7 @@ function JobsManager({ uid, jobs }: { uid: string; jobs: Job[] }) {
           <button
             type="button"
             onClick={() => setShowArchived((s) => !s)}
-            className="flex w-full min-h-11 items-center px-4 py-2.5 text-sm text-slate-500"
+            className="flex w-full min-h-11 items-center px-4 py-2.5 text-sm text-secondary"
           >
             {showArchived ? '▾' : '▸'} Archived ({archived.length})
           </button>
@@ -332,12 +332,12 @@ function JobsManager({ uid, jobs }: { uid: string; jobs: Job[] }) {
             archived.map((job) => (
               <div key={job.id} className="flex items-center gap-3 px-4 py-2.5">
                 <span className={`h-3 w-3 rounded-full ${swatch(job.color).dot} opacity-50`} />
-                <span className="flex-1 text-sm text-slate-500 line-through">
+                <span className="flex-1 text-sm text-secondary line-through">
                   {job.name}
                 </span>
                 <button
                   type="button"
-                  className="min-h-9 text-sm font-medium text-emerald-700"
+                  className="min-h-9 text-sm font-medium text-brand-deep"
                   onClick={() => void unarchiveJob(uid, job.id)}
                 >
                   Restore
@@ -369,14 +369,14 @@ function JobForm({
   const canSave = name.trim().length > 0 && !saving
 
   return (
-    <div className="bg-slate-50 px-4 py-3">
+    <div className="bg-grouped px-4 py-3">
       <input
         autoFocus
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Job name (e.g. Café)"
         maxLength={40}
-        className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-base"
+        className="min-h-11 w-full rounded-lg border border-separator bg-card px-3 text-base"
       />
       <div className="mt-2 flex flex-wrap gap-2">
         {JOB_COLORS.map((c) => (
@@ -395,7 +395,7 @@ function JobForm({
         <button
           type="button"
           disabled={!canSave}
-          className="min-h-10 flex-1 rounded-lg bg-emerald-600 text-sm font-semibold text-white disabled:opacity-40"
+          className="min-h-10 flex-1 rounded-lg bg-brand text-sm font-semibold text-white disabled:opacity-40"
           onClick={async () => {
             setSaving(true)
             try {
@@ -409,7 +409,7 @@ function JobForm({
         </button>
         <button
           type="button"
-          className="min-h-10 rounded-lg px-3 text-sm font-medium text-slate-500"
+          className="min-h-10 rounded-lg px-3 text-sm font-medium text-secondary"
           onClick={onCancel}
         >
           Cancel

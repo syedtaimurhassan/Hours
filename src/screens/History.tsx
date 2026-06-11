@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import { BarChart } from '../components/BarChart'
 import { JobSelector } from '../components/JobBits'
+import { LiveTotal } from '../components/Live'
 import { ShiftCard, type ShiftBadge } from '../components/ShiftCard'
+import { GroupHeader, ListGroup, Segmented } from '../components/ui'
 import { buildBuckets } from '../lib/chart'
 import { effectiveEndMs, periodTotals } from '../lib/durations'
 import { downloadCsv, shiftsToCsv } from '../lib/export'
@@ -62,7 +64,8 @@ export function History({
   jobsById: Map<string, Job>
   onEdit: (target: EditRequest) => void
 }) {
-  const now = useNow(true)
+  // Layout clock — ticking is delegated to the LiveTotal/ShiftCard leaves.
+  const now = useNow(false)
   const [filter, setFilterRaw] = useState<PeriodFilter>(loadLastFilter)
   const [anchorMs, setAnchorMs] = useState(() => Date.now())
   const [customFrom, setCustomFrom] = useState(() => toDateInputValue(Date.now()))
@@ -132,6 +135,7 @@ export function History({
 
   const isCurrent = now >= range.start && now < range.end
   const totals = periodTotals(shifts, now)
+  const periodHasRunning = shifts.some((s) => effectiveEndMs(s) === null)
   const buckets = useMemo(
     () => buildBuckets(shifts, range.start, range.end, now),
     [shifts, range.start, range.end, now],
@@ -228,30 +232,26 @@ export function History({
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 pt-4 pb-28">
-      {/* Filter chips + add */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-        {(['day', 'week', 'month', 'custom'] as const).map((f) => (
-          <button
-            key={f}
-            type="button"
-            className={`min-h-11 shrink-0 rounded-full px-3.5 text-sm font-medium capitalize ${
-              filter === f
-                ? 'bg-emerald-600 text-white'
-                : 'border border-slate-300 bg-white text-slate-600'
-            }`}
-            onClick={() => setFilter(f)}
-          >
-            {f}
-          </button>
-        ))}
+    <div className="mx-auto max-w-md px-4 pt-3 pb-28">
+      {/* Period segmented control + add */}
+      <div className="flex items-center justify-between gap-2">
+        <Segmented
+          value={filter}
+          onChange={(f) => setFilter(f)}
+          options={[
+            { value: 'day', label: 'Day' },
+            { value: 'week', label: 'Week' },
+            { value: 'month', label: 'Month' },
+            { value: 'custom', label: 'Custom' },
+          ]}
+        />
         <button
           type="button"
           aria-label="Add shift"
-          className="ml-auto flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-medium text-emerald-700"
+          className="card-shadow flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-full bg-card text-[22px] leading-none font-light text-brand-deep active:bg-fill"
           onClick={() => onEdit({ kind: 'add' })}
         >
-          ＋
+          +
         </button>
       </div>
 
@@ -261,32 +261,30 @@ export function History({
             <input
               type="date"
               aria-label="From date"
-              className="min-h-11 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-base"
+              className="min-h-11 flex-1 rounded-xl border border-separator bg-card px-3 text-[15px]"
               value={customFrom}
               max={toDateInputValue(now)}
               onChange={(e) => setCustomFrom(e.target.value)}
             />
-            <span className="text-slate-400">–</span>
+            <span className="text-tertiary">–</span>
             <input
               type="date"
               aria-label="To date"
-              className="min-h-11 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-base"
+              className="min-h-11 flex-1 rounded-xl border border-separator bg-card px-3 text-[15px]"
               value={customTo}
               min={customFrom}
               max={toDateInputValue(now)}
               onChange={(e) => setCustomTo(e.target.value)}
             />
           </div>
-          {customError && (
-            <p className="mt-1 text-sm text-red-600">{customError}</p>
-          )}
+          {customError && <p className="mt-1 text-[13px] text-red-600">{customError}</p>}
         </div>
       ) : (
         <div className="mt-3 flex items-center justify-between">
           <button
             type="button"
             aria-label="Previous period"
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-xl text-slate-500 active:bg-slate-100"
+            className="flex min-h-10 min-w-10 items-center justify-center rounded-full text-2xl text-secondary active:bg-fill"
             onClick={() => {
               setAnchorMs(range.start - 1)
               setLimit(PAGE_SIZE)
@@ -302,43 +300,44 @@ export function History({
               setLimit(PAGE_SIZE)
             }}
           >
-            <span className="block text-lg font-semibold text-slate-900">
+            <span className="block text-[17px] font-semibold text-label">
               {header.title}
             </span>
-            <span className="block text-xs text-slate-500">{header.sub}</span>
+            <span className="block text-[12px] text-secondary">{header.sub}</span>
           </button>
-          <div className="flex items-center gap-1">
-            {!isCurrent && (
-              <button
-                type="button"
-                className="min-h-11 rounded-full border border-slate-300 bg-white px-3 text-xs font-medium text-slate-600"
-                onClick={() => {
-                  setAnchorMs(Date.now())
-                  setLimit(PAGE_SIZE)
-                }}
-              >
-                Today
-              </button>
-            )}
-            <button
-              type="button"
-              aria-label="Next period"
-              disabled={range.end > now}
-              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-xl text-slate-500 active:bg-slate-100 disabled:opacity-30"
-              onClick={() => {
-                setAnchorMs(range.end)
-                setLimit(PAGE_SIZE)
-              }}
-            >
-              ›
-            </button>
-          </div>
+          <button
+            type="button"
+            aria-label="Next period"
+            disabled={range.end > now}
+            className="flex min-h-10 min-w-10 items-center justify-center rounded-full text-2xl text-secondary active:bg-fill disabled:opacity-25"
+            onClick={() => {
+              setAnchorMs(range.end)
+              setLimit(PAGE_SIZE)
+            }}
+          >
+            ›
+          </button>
         </div>
       )}
 
-      {/* Per-job filter — only when the user has jobs. */}
+      {!isCurrent && filter !== 'custom' && (
+        <div className="mt-2 flex justify-center">
+          <button
+            type="button"
+            className="min-h-8 rounded-full bg-fill px-3 text-[13px] font-medium text-brand-deep"
+            onClick={() => {
+              setAnchorMs(Date.now())
+              setLimit(PAGE_SIZE)
+            }}
+          >
+            Jump to today
+          </button>
+        </div>
+      )}
+
+      {/* Per-job filter */}
       {activeJobsList.length > 0 && (
-        <div className="mt-3">
+        <div className="mt-4">
           <JobSelector
             jobs={activeJobsList}
             selectedId={jobFilter}
@@ -348,39 +347,36 @@ export function History({
         </div>
       )}
 
-      {/* Totals card */}
-      <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-xs">
-        <div className="flex items-baseline justify-between">
-          <span className="text-2xl font-bold text-slate-900">
-            Worked {formatDuration(totals.workedMs)}
-          </span>
+      {/* Summary widget */}
+      <div className="mt-4 card-shadow rounded-2xl bg-card px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[13px] font-medium text-secondary">Worked</p>
+            <p className="text-[32px] leading-none font-bold tracking-tight text-label">
+              <LiveTotal shifts={shifts} live={periodHasRunning} />
+            </p>
+          </div>
           {meta.fromCache ? (
-            <span className="flex items-center gap-1 text-xs text-slate-500">
-              <span className="inline-block h-3 w-10 animate-pulse rounded bg-slate-200" />
-              updating…
-            </span>
+            <span className="inline-block h-3 w-12 animate-pulse rounded bg-fill" />
           ) : (
             shifts.length > 0 && (
               <button
                 type="button"
                 onClick={exportCsv}
-                className="flex min-h-9 items-center gap-1 rounded-full border border-slate-300 px-3 text-xs font-medium text-slate-600 active:bg-slate-100"
+                className="flex min-h-9 items-center gap-1.5 rounded-full bg-fill px-3.5 text-[13px] font-semibold text-secondary active:opacity-70"
               >
                 <DownloadIcon /> Export
               </button>
             )
           )}
         </div>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Shifts {formatDuration(totals.shiftMs)} · Breaks{' '}
-          {formatDuration(totals.breakMs)}
-          {jobFilter !== null && (
-            <> · {jobsById.get(jobFilter)?.name ?? 'job'}</>
-          )}
+        <p className="mt-1.5 text-[13px] text-secondary">
+          {formatDuration(totals.shiftMs)} shift · {formatDuration(totals.breakMs)} break
+          {jobFilter !== null && <> · {jobsById.get(jobFilter)?.name ?? 'job'}</>}
         </p>
       </div>
 
-      {/* Worked-time bar chart */}
+      {/* Chart widget */}
       {buckets.length > 0 && shifts.length > 0 && (
         <div className="mt-3">
           <BarChart buckets={buckets} />
@@ -389,47 +385,44 @@ export function History({
 
       {/* Shift list */}
       {!meta.serverSeen && shifts.length === 0 ? (
-        <div className="mt-4 space-y-2">
-          <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
-          <div className="h-16 animate-pulse rounded-xl bg-slate-200" />
-          <p className="text-center text-sm text-slate-500">
-            Loading your shifts…
-          </p>
+        <div className="mt-4">
+          <div className="card-shadow h-28 animate-pulse rounded-2xl bg-card" />
         </div>
       ) : shifts.length === 0 ? (
-        <p className="mt-4 rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
-          No shifts in this period · 0 m
-        </p>
+        <div className="mt-4 card-shadow rounded-2xl bg-card px-4 py-10 text-center text-[15px] text-tertiary">
+          No shifts in this period.
+        </div>
       ) : (
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="mt-5 flex flex-col gap-5">
           {visibleGroups.map(({ key: k, take, full }) => {
             const dayTotals = periodTotals(full, now)
             return (
               <section key={k}>
-                <h3 className="mb-1.5 flex items-baseline justify-between text-sm font-medium text-slate-500">
-                  <span>{formatDayHeader(resolveMs(full[0].start))}</span>
-                  <span>Worked {formatDuration(dayTotals.workedMs)}</span>
-                </h3>
-                <div className="flex flex-col gap-2">
+                <div className="mb-2 flex items-baseline justify-between">
+                  <GroupHeader>{formatDayHeader(resolveMs(full[0].start))}</GroupHeader>
+                  <span className="mr-1 text-[13px] font-semibold text-secondary">
+                    {formatDuration(dayTotals.workedMs)}
+                  </span>
+                </div>
+                <ListGroup>
                   {take.map((s) => (
                     <ShiftCard
                       key={s.id}
                       shift={s}
                       job={s.jobId ? jobsById.get(s.jobId) : undefined}
-                      nowMs={now}
                       endMs={effectiveEndMs(s)}
                       badges={badgesFor(s)}
                       onTap={() => onEdit({ kind: 'edit', shiftId: s.id })}
                     />
                   ))}
-                </div>
+                </ListGroup>
               </section>
             )
           })}
           {hasMore && (
             <button
               type="button"
-              className="min-h-11 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-600"
+              className="card-shadow min-h-12 rounded-2xl bg-card text-[15px] font-medium text-brand-deep"
               onClick={() => setLimit((l) => l + PAGE_SIZE)}
             >
               Load more
@@ -437,10 +430,6 @@ export function History({
           )}
         </div>
       )}
-
-      <p className="mt-6 text-center text-xs text-slate-500">
-        Shifts are shown on the day they started.
-      </p>
     </div>
   )
 }

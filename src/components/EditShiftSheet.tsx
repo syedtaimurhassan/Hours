@@ -506,15 +506,16 @@ export function Sheet({
       <button
         type="button"
         aria-label="Close"
-        className="absolute inset-0 bg-slate-900/40"
+        className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
         onClick={onRequestClose}
         tabIndex={-1}
       />
       <div
         role="dialog"
         aria-modal="true"
-        className="safe-bottom relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-slate-50 px-4 pt-4 pb-6 shadow-xl"
+        className="sheet-enter safe-bottom relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[20px] bg-grouped px-4 pt-2.5 pb-6 shadow-[0_-8px_40px_-8px_rgb(0_0_0/0.3)]"
       >
+        <div className="mx-auto mb-3 h-1.5 w-9 rounded-full bg-[#0000001f]" />
         {children}
       </div>
     </div>

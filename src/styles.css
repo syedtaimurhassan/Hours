@@ -1,25 +1,39 @@
 @import "tailwindcss";
 
+/* Apple-like system palette (light). Neutral chrome, one restrained accent. */
 @theme {
-  --color-surface: #f8fafc;
+  --color-grouped: #f2f2f7; /* systemGroupedBackground */
+  --color-card: #ffffff; /* secondarySystemGroupedBackground */
+  --color-fill: #78788014; /* tertiarySystemFill — control backgrounds */
+  --color-separator: #3c3c4326; /* opaque-ish separator */
+  --color-label: #1c1c1e;
+  --color-secondary: #6c6c70; /* secondaryLabel */
+  --color-tertiary: #aeaeb2; /* tertiaryLabel */
+  --color-brand: #34c759; /* systemGreen */
+  --color-brand-deep: #248a3d;
 }
 
 html,
 body {
-  /* Everything is live onSnapshot — pull-to-refresh adds nothing and
-     accidentally triggers on the shift list. */
+  /* Everything is live onSnapshot — pull-to-refresh adds nothing. */
   overscroll-behavior-y: contain;
-  background: #f8fafc;
+  background: #f2f2f7;
+  color: #1c1c1e;
 }
 
 body {
   font-family:
-    system-ui,
     -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    system-ui,
     "Segoe UI",
     Roboto,
     sans-serif;
   -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.01em;
 }
 
 @utility safe-top {
@@ -32,20 +46,26 @@ body {
 
 @utility tabular-digits {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* iOS-style inset grouped card shadow — extremely subtle. */
+@utility card-shadow {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 1px 1px rgb(0 0 0 / 0.03);
 }
 
 @keyframes gentle-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgb(220 38 38 / 0.25);
+    box-shadow: 0 0 0 0 rgb(52 199 89 / 0.18);
   }
   50% {
-    box-shadow: 0 0 0 16px rgb(220 38 38 / 0);
+    box-shadow: 0 0 0 14px rgb(52 199 89 / 0);
   }
 }
 
 @utility pulse-running {
-  animation: gentle-pulse 2.5s ease-in-out infinite;
+  animation: gentle-pulse 2.6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -56,17 +76,15 @@ body {
 
 @keyframes settle {
   from {
-    transform: scale(0.96);
-    opacity: 0.7;
+    transform: scale(0.97);
   }
   to {
     transform: scale(1);
-    opacity: 1;
   }
 }
 
 @utility settling {
-  animation: settle 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: settle 1.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes shake {
@@ -75,13 +93,27 @@ body {
     transform: translateX(0);
   }
   25% {
-    transform: translateX(-4px);
+    transform: translateX(-3px);
   }
   75% {
-    transform: translateX(4px);
+    transform: translateX(3px);
   }
 }
 
 @utility shake-once {
   animation: shake 0.25s ease-in-out;
+}
+
+/* Sheet slide-up */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@utility sheet-enter {
+  animation: sheet-up 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
