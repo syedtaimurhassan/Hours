@@ -1,4 +1,5 @@
 import { formatDuration, parseTimeInput, resolveTimeWithin, toTimeInputValue } from '../lib/time'
+import { TimeField } from './TimeField'
 
 export type BreakRow = { id: string; start: string; end: string } // HH:mm inputs
 
@@ -39,67 +40,55 @@ export function BreakEditor({
 
   return (
     <div>
-      <span className="mb-1 block text-sm font-medium text-slate-700">
+      <span className="mb-1.5 block text-[13px] font-semibold tracking-wide text-secondary uppercase">
         Breaks
       </span>
       <div className="flex flex-col gap-2">
         {rows.map((row) => (
           <div key={row.id}>
             <div className="flex items-center gap-2">
-              <input
-                type="time"
-                step={60}
-                aria-label="Break start time"
-                className={`min-h-11 flex-1 rounded-lg border bg-white px-3 py-2 text-base ${errors[row.id] ? 'border-red-400' : 'border-slate-300'}`}
+              <TimeField
+                ariaLabel="Break start time"
                 value={row.start}
-                onChange={(e) =>
-                  onChange(
-                    rows.map((r) =>
-                      r.id === row.id ? { ...r, start: e.target.value } : r,
-                    ),
-                  )
+                invalid={Boolean(errors[row.id])}
+                onChange={(t) =>
+                  onChange(rows.map((r) => (r.id === row.id ? { ...r, start: t } : r)))
                 }
               />
-              <span className="text-slate-400">–</span>
-              <input
-                type="time"
-                step={60}
-                aria-label="Break end time"
-                className={`min-h-11 flex-1 rounded-lg border bg-white px-3 py-2 text-base ${errors[row.id] ? 'border-red-400' : 'border-slate-300'}`}
+              <span className="text-tertiary">–</span>
+              <TimeField
+                ariaLabel="Break end time"
                 value={row.end}
-                onChange={(e) =>
-                  onChange(
-                    rows.map((r) =>
-                      r.id === row.id ? { ...r, end: e.target.value } : r,
-                    ),
-                  )
+                invalid={Boolean(errors[row.id])}
+                onChange={(t) =>
+                  onChange(rows.map((r) => (r.id === row.id ? { ...r, end: t } : r)))
                 }
               />
               <button
                 type="button"
                 aria-label="Remove break"
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 active:bg-slate-100"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-secondary active:bg-fill"
                 onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
               >
                 ✕
               </button>
             </div>
             {errors[row.id] && (
-              <p className="mt-1 text-sm text-red-600">{errors[row.id]}</p>
+              <p className="mt-1 text-[13px] text-red-600">{errors[row.id]}</p>
             )}
           </div>
         ))}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="text-sm text-slate-500">Add break:</span>
+        <span className="text-[15px] text-secondary">Add break:</span>
         {[30, 45, 60].map((min) => (
           <button
             key={min}
             type="button"
-            className="min-h-11 rounded-full border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 active:bg-slate-100"
+            className="min-h-10 rounded-full border border-separator bg-card px-4 text-[15px] font-medium text-label active:bg-fill"
             onClick={() => addPreset(min)}
           >
-            {formatDuration(min * 60_000)}
+            {min === 60 ? '1 h' : formatDuration(min * 60_000)}
           </button>
         ))}
       </div>

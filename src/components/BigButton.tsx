@@ -125,8 +125,9 @@ export function BigButton({
 }
 
 function PlayIcon() {
+  // Nudged right ~1.5px so the triangle reads optically centered.
   return (
-    <svg aria-hidden viewBox="0 0 24 24" className="h-10 w-10" fill="currentColor">
+    <svg aria-hidden viewBox="0 0 24 24" className="h-10 w-10 translate-x-[2px]" fill="currentColor">
       <path d="M8 5.5v13a1 1 0 001.52.85l10-6.5a1 1 0 000-1.7l-10-6.5A1 1 0 008 5.5z" />
     </svg>
   )

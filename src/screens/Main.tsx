@@ -152,7 +152,7 @@ export function Main({
     setLastJobId(selectedJobId)
     setPending('starting')
     startShift({ uid, tapMs, shiftId, jobId: selectedJobId, knownOffline })
-      .then(() => showSnack({ message: `Started at ${formatTime(tapMs)}`, ttl: 3000 }))
+      .then(() => showSnack({ message: `Started at ${formatTime(tapMs)}` }))
       .catch(opFailed)
   }
 
@@ -163,7 +163,6 @@ export function Main({
       .then(({ closedBreakId }) =>
         showSnack({
           message: `Ended at ${formatTime(tapMs)}${closedBreakId ? ', break closed' : ''}`,
-          ttl: 4000,
           actions: [{ label: 'Edit', run: () => onEdit({ kind: 'edit', shiftId: shift.id }) }],
         }),
       )

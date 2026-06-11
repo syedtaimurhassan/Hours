@@ -4,6 +4,7 @@ import {
   parseTimeInput,
   wallToEpoch,
 } from '../lib/time'
+import { TimeField } from './TimeField'
 
 export type DateTimeDraft = { date: string; time: string } // raw input values
 
@@ -49,13 +50,11 @@ export function DateTimeField({
           max={dateMax}
           onChange={(e) => onChange({ ...value, date: e.target.value }, 'date')}
         />
-        <input
-          type="time"
-          step={60}
-          aria-label={`${label} time`}
-          className={inputClass(Boolean(error))}
+        <TimeField
+          ariaLabel={`${label} time`}
           value={value.time}
-          onChange={(e) => onChange({ ...value, time: e.target.value }, 'time')}
+          invalid={Boolean(error)}
+          onChange={(t) => onChange({ ...value, time: t }, 'time')}
         />
       </div>
       {error ? (
